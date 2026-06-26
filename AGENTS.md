@@ -1,0 +1,1 @@
+Module of the app is in "noScribe/" module directory.
