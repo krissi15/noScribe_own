@@ -112,8 +112,12 @@ class ToWav:
         # Get time base.
         time_base = self.stream_input.time_base
 
-        # Take start time into consideration.
-        start_time = self.stream_input.start_time * time_base
+        # Take start time into consideration. Some streams report no start
+        # time (``None``); treat that as zero instead of raising a TypeError.
+        if self.stream_input.start_time is None:
+            start_time = 0
+        else:
+            start_time = self.stream_input.start_time * time_base
 
         # Seek.
         seek_to = (seconds - start_time) * time_base.denominator
