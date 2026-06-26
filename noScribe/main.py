@@ -1366,7 +1366,9 @@ class App(ctk.CTk):
                     self.log(t('new_release_download'))
                     self.logn(str(latest_release['html_url']), link=str(latest_release['html_url']))
                     self.logn()
-            except:
+            except Exception:
+                # Update check is best-effort; ignore network/parse errors so a
+                # missing internet connection never blocks startup.
                 pass
             
     # Events and Methods
