@@ -177,13 +177,32 @@ if not os.path.exists(config_dir):
 
 config_file = os.path.join(config_dir, 'config.yml')
 
-try:
-    with open(config_file, 'r') as file:
-        config = yaml.safe_load(file)
-        if not config:
-            raise # config file is empty (None)        
-except: # seems we run it for the first time and there is no config file
-    config = {}
+config = {}
+if os.path.exists(config_file):
+    try:
+        with open(config_file, 'r') as file:
+            loaded_config = yaml.safe_load(file)
+        if isinstance(loaded_config, dict):
+            config = loaded_config
+        elif loaded_config is not None:
+            # File parsed but is not a key/value mapping - treat as corrupt.
+            raise ValueError('config file does not contain a mapping')
+        # loaded_config is None -> empty file, fall back to empty defaults.
+    except Exception as exc:
+        # The config file exists but could not be read/parsed. Preserve the
+        # broken file (so the user's settings are not silently lost) and start
+        # with defaults instead of crashing on startup.
+        try:
+            backup_file = config_file + '.corrupt'
+            os.replace(config_file, backup_file)
+            sys.stderr.write(
+                f'noScribe: could not read config file ({exc}). '
+                f'A backup was saved to {backup_file}; using default settings.\n'
+            )
+        except Exception:
+            pass
+        config = {}
+# else: first run, no config file yet -> use empty defaults.
     
 def get_config(key: str, default) -> str:
     """ Get a config value, set it if it doesn't exist """
