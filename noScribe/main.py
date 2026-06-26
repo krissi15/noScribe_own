@@ -232,12 +232,21 @@ def version_higher(version1, version2, subversion_level=99) -> int:
     elem_num = max(len(version1_elems), len(version2_elems))
     while len(version1_elems) < elem_num:
         version1_elems.append('0')
-    while len(version1_elems) < elem_num:
-        version1_elems.append('0')
+    while len(version2_elems) < elem_num:
+        version2_elems.append('0')
+
+    def _version_part_to_int(part: str) -> int:
+        # Tolerate non-numeric suffixes such as "4rc1" or "4-beta" by reading
+        # only the leading digits; fall back to 0 if there are none.
+        match = re.match(r'\d+', part)
+        return int(match.group()) if match else 0
+
     for i in range(elem_num):
-        if int(version1_elems[i]) > int(version2_elems[i]):
+        elem1 = _version_part_to_int(version1_elems[i])
+        elem2 = _version_part_to_int(version2_elems[i])
+        if elem1 > elem2:
             return 1
-        elif int(version2_elems[i]) > int(version1_elems[i]):
+        elif elem2 > elem1:
             return 2
         if i >= subversion_level:
             break
