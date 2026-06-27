@@ -2,6 +2,57 @@
 ### Cutting Edge AI Technology for Automated Audio Transcription
 </br>
 
+---
+
+## 📦 Installation (macOS & Windows) — Kurzanleitung
+
+> Schnellanleitung für diesen Fork. noScribe ist eine Python-Anwendung. Du kannst die **fertige Version** nutzen oder **aus dem Quellcode** bauen. Modelle (mehrere GB) werden beim Quellcode-Build separat geladen.
+
+### Windows
+
+**Einfachster Weg – fertige Version:**
+1. Windows-Installer von der offiziellen Seite laden: <https://noscribe.de/de/docs/download-installation/>
+2. Installer ausführen, danach startet noScribe über das Startmenü.
+
+**Aus dem Quellcode (für Anpassungen):**
+```powershell
+# Voraussetzungen: Python 3.12 (mit "Add to PATH"), Git, ffmpeg
+winget install Python.Python.3.12 Git.Git Gyan.FFmpeg
+git clone https://github.com/krissi15/noScribe.git
+cd noScribe
+py -3.12 -m venv venv
+venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r environments\requirements_win_cpu.txt   # GPU-Variante: requirements_win_cuda.txt
+git lfs install
+git clone https://huggingface.co/mukowaty/faster-whisper-int8 models\fast
+git clone https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo models\precise
+python -m noScribe
+```
+
+### macOS
+
+**Apple Silicon (M1–M4) – aus dem Quellcode:**
+```bash
+brew install python@3.12 git-lfs ffmpeg
+git lfs install
+git clone https://github.com/krissi15/noScribe.git
+cd noScribe
+python3.12 -m venv venv && source venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r environments/requirements_macOS_arm64.txt
+pip install -r noScribeEdit/environments/requirements.txt
+git clone https://huggingface.co/mukowaty/faster-whisper-int8 models/fast
+git clone https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo models/precise
+python3 -m noScribe
+```
+
+**Intel-Mac (x86_64):** Der Quellcode-Build wird vom Projekt offiziell **nicht** unterstützt (pyannote-Inkompatibilität). Nutze die fertige Version: <https://noscribe.de/de/docs/download-installation/>
+
+> 💡 Das mitgelieferte Skript `setup_noscribe.sh` automatisiert die macOS-Einrichtung.
+
+---
+
 > [!NOTE]
 > ### 🚀 The new official website for noScribe: https://noscribe.de
 > Learn how to install and use the software, and find tips to improve transcription quality.
