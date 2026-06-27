@@ -41,3 +41,7 @@ diarize_x86_64_mod_unsigned
 .python-version
 /pyinstaller/win_installer
 /.history-memo
+
+# Large pyannote model weights (downloaded separately, not source)
+pyannote/embedding/pytorch_model.bin
+pyannote/segmentation/pytorch_model.bin
