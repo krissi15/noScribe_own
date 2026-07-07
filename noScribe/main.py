@@ -976,10 +976,10 @@ class App(ctk.CTk):
             self.geometry(f"{1100}x{690}")
 
         if platform.system() in ("Darwin", "Windows"):
-            self.iconbitmap(impres.files("img") / "noScribeLogo.ico")
+            self.iconbitmap(impres.files("img") / "traudi_logo.ico")
         if platform.system() == "Linux":
             self.iconphoto(
-                True, tk.PhotoImage(file=impres.files("img") / "noScribeLogo.png")
+                True, tk.PhotoImage(file=impres.files("img") / "traudi_logo.png")
             )
 
         # header
