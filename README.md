@@ -1,44 +1,85 @@
 ﻿# Traudi
+
 ### Transkription für die Justiz Rheinland-Pfalz
 
-Traudi ist ein Fork von [noScribe](https://github.com/kaixxx/noScribe) (GPL-3.0, Kai Dröge)
-mit dem Erscheinungsbild der Justiz Rheinland-Pfalz. Die Transkription läuft
-vollständig lokal auf dem eigenen Rechner — es werden keine Audiodaten übertragen.
+Traudi verwandelt Tonaufnahmen automatisch in Text — Vernehmungen, Anhörungen,
+Besprechungen. Die Verarbeitung läuft **vollständig auf dem eigenen Rechner**.
+Es werden keine Audiodaten übertragen, es wird kein Cloud-Dienst genutzt, und
+nach der einmaligen Einrichtung braucht die Anwendung keinen Internetzugang.
 
-</br>
+Traudi ist eine Abwandlung von [noScribe](https://github.com/kaixxx/noScribe)
+von Kai Dröge (GPL-3.0).
+
+![Hauptfenster](img/traudi_main_window.png)
 
 ---
 
-## 📦 Installation
+## Inhalt
 
-### Endnutzer (Windows)
+- [Installation für Anwenderinnen und Anwender](#installation-für-anwenderinnen-und-anwender)
+- [Installation für Entwicklung](#installation-für-entwicklung)
+- [Sprechererkennung einrichten](#sprechererkennung-einrichten)
+- [Bedienung](#bedienung)
+- [Was die Qualität beeinflusst](#was-die-qualität-beeinflusst)
+- [Bekannte Einschränkungen](#bekannte-einschränkungen)
+- [Erweiterte Einstellungen](#erweiterte-einstellungen)
+- [Installer selbst bauen](#installer-selbst-bauen)
+- [Mitwirken](#mitwirken)
+- [Herkunft und Lizenz](#herkunft-und-lizenz)
 
-1. Den Installer aus den [Releases](https://github.com/krissi15/noScribe_own/releases) laden.
-2. Ausführen. Traudi liegt danach im Startmenü.
+---
 
-Beim ersten Start lädt Traudi einmalig ein Sprachmodell (ca. 1,6 GB) herunter und
-legt es im Benutzerprofil ab. Danach arbeitet die Anwendung ohne Internetzugang.
+## Installation für Anwenderinnen und Anwender
 
-### Entwickler
+**Nur unter Windows. Sie brauchen weder Python noch Programmierkenntnisse.**
 
-Ein Befehl — es braucht **kein** git-lfs und **kein** ffmpeg (die Audiokonvertierung
-läuft über PyAV):
+1. Laden Sie die Installationsdatei aus den [Releases](https://github.com/krissi15/noScribe_own/releases) herunter.
+2. Führen Sie sie aus. Warnt Windows vor einem „unbekannten Herausgeber", wählen Sie *Weitere Informationen → Trotzdem ausführen*. Die Datei ist nicht signiert.
+3. Traudi liegt danach im Startmenü.
+
+**Beim ersten Start** meldet Traudi, dass ein Sprachmodell fehlt, und bietet an,
+es herunterzuladen (rund 1,6 GB, einmalig). Der Download dauert je nach
+Verbindung einige Minuten. Danach arbeitet die Anwendung offline.
+
+> **Ohne Internetzugang am Arbeitsplatz?** Das Sprachmodell lässt sich auf einem
+> anderen Rechner mit `python scripts/fetch_models.py` laden und als Ordner
+> kopieren nach
+> `%LOCALAPPDATA%\Traudi\Traudi\whisper_models\precise`.
+
+**Für die Verteilung auf viele Rechner** akzeptiert der Installer den Schalter
+`/S` für eine unbeaufsichtigte Installation.
+
+---
+
+## Installation für Entwicklung
+
+**Voraussetzung:** Python 3.12 und Git.
+Unter Windows: `winget install Python.Python.3.12 Git.Git`
+Unter macOS: `brew install python@3.12 git`
+
+Es braucht **kein** `git-lfs` und **kein** `ffmpeg` — die Audiokonvertierung
+läuft über die Python-Bibliothek PyAV.
+
+### Windows
 
 ```powershell
 git clone https://github.com/krissi15/noScribe_own.git
 cd noScribe_own
-.\setup.bat              # CPU;  .\setup.bat -Cuda  für CUDA 12.8
+.\setup.bat
 venv\Scripts\activate
 python -m noScribe
 ```
 
-`setup.bat` ruft nur `setup.ps1` auf. Der Umweg ist nötig, weil Windows das direkte
-Ausführen von PowerShell-Skripten standardmäßig verbietet (`ExecutionPolicy`
-`Restricted`). Wer die Richtlinie ohnehin gelockert hat, kann `.\setup.ps1` direkt
-aufrufen.
+`setup.bat` ruft nur `setup.ps1` auf. Der Umweg ist nötig, weil Windows das
+direkte Ausführen von PowerShell-Skripten standardmäßig verbietet
+(`ExecutionPolicy: Restricted`). Wer die Richtlinie gelockert hat, kann
+`.\setup.ps1` auch direkt aufrufen.
+
+Für NVIDIA-Grafikkarten: `.\setup.bat -Cuda` (CUDA 12.8, Treiber ab 570.65).
+
+### macOS (Apple Silicon) und Linux
 
 ```bash
-# macOS (Apple Silicon) / Linux
 git clone https://github.com/krissi15/noScribe_own.git
 cd noScribe_own
 ./setup.sh
@@ -46,290 +87,233 @@ source venv/bin/activate
 python -m noScribe
 ```
 
-Voraussetzung ist Python 3.12. Unter Windows: `winget install Python.Python.3.12 Git.Git`,
-unter macOS: `brew install python@3.12`.
+Intel-Macs werden nicht unterstützt (Unverträglichkeit mit pyannote 4).
 
-`setup.ps1` / `setup.sh` legen eine venv an, installieren die Abhängigkeiten und laden
-über [`scripts/fetch_models.py`](scripts/fetch_models.py) die Sprachmodelle. Das Skript
-lässt sich auch einzeln aufrufen:
+### Was das Setup tut
 
-```bash
-python scripts/fetch_models.py --only precise      # nur das genaue Modell
-python scripts/fetch_models.py --skip-whisper --pyannote   # Sprechererkennung
-```
+Es legt eine virtuelle Umgebung unter `venv/` an, installiert die
+Abhängigkeiten und lädt über [`scripts/fetch_models.py`](scripts/fetch_models.py)
+die beiden Sprachmodelle (zusammen 2,4 GB). Mit `-NoModels` bzw. `--no-models`
+bleibt der Download aus.
 
-**Sprechererkennung:** Die pyannote-Gewichte liegen in einem *gated repository*. Für den
-Quellcode-Build müssen die Bedingungen einmalig auf
-[huggingface.co/pyannote/speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1)
-bestätigt und `HF_TOKEN` gesetzt werden. Endnutzer brauchen das nicht — der Installer
-bringt diese Gewichte mit (32 MB).
-
-**Editor:** Der externe Editor `noScribeEdit` liegt in einem eigenen Repository und ist
-optional:
+Das Skript lässt sich auch einzeln aufrufen:
 
 ```bash
-git clone https://github.com/kaixxx/noScribeEditor.git noScribeEdit
-pip install -r noScribeEdit/environments/requirements.txt
+python scripts/fetch_models.py                 # beide Modelle
+python scripts/fetch_models.py --only precise  # nur das genaue Modell
+python scripts/fetch_models.py --force         # erneut laden
 ```
 
-**Intel-Mac (x86_64):** Der Quellcode-Build wird nicht unterstützt (pyannote-Inkompatibilität).
+---
 
-### Installer selbst bauen
+## Sprechererkennung einrichten
+
+Die Sprechererkennung („Wer hat wann gesprochen?") nutzt
+[pyannote community-1](https://huggingface.co/pyannote/speaker-diarization-community-1).
+Dessen Gewichte liegen in einem **zugangsbeschränkten Repository**.
+
+**Anwenderinnen und Anwender brauchen hier nichts zu tun** — der Installer
+bringt diese Dateien mit (32 MB).
+
+**Für die Entwicklung** sind drei Schritte nötig:
+
+1. Auf der [Modellseite](https://huggingface.co/pyannote/speaker-diarization-community-1) einmalig die Nutzungsbedingungen bestätigen.
+2. Ein Zugriffstoken unter [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) erzeugen.
+3. Die Gewichte laden:
 
 ```powershell
-choco install nsis
-python pyinstaller/win_build.py            # CPU
-python pyinstaller/win_build.py --cuda     # CUDA
+$env:HF_TOKEN = "hf_..."
+venv\Scripts\python.exe scripts\fetch_models.py --skip-whisper --pyannote
 ```
-
-Der Installer entsteht unter `pyinstaller/win_installer/`. Er enthält **keine**
-Whisper-Gewichte — die lädt Traudi beim ersten Start. Der Workflow
-[`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml) macht dasselbe in CI.
-
----
-
-> [!NOTE]
-> ### 🚀 The new official website for noScribe: https://noscribe.de
-> Learn how to install and use the software, and find tips to improve transcription quality.
->
-> 🌐 Available in **English, German, Spanish, Italian, and Dutch**.
->
-> Please update your links. 
-
----
-
-> [!WARNING]
-> Somebody has registered the domain **noscribe(dot)ai** to sell transcription services. **Stay away from this platform, I have nothing to do with it.** The real noScribe is free and always will be. This is obviously an attempt to profit from the popularity of my software and the reputation it gained over the years. Very sad. 
-
-## What is noScribe?
-- An app to produce **high quality transcripts of interviews** for qualitative social research or journalistic use
-- noScribe is **free and open source** ([GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html)), available for Windows, MacOS and Linux 
-- It runs **completely locally** on your computer, protecting the confidentiality of your interviews. No cloud, no worries
-- It can distinguish between different **speakers** and understands around 60 languages (more or less, see below)
-- It includes a **nice editor** to review, verify and correct the resulting transcript
-- It is standing on the shoulders of giants: [Whisper from OpenAI](https://github.com/openai/whisper), [faster-whisper by Guillaume Klein](https://github.com/guillaumekln/faster-whisper) and [pyannote from Hervé Bredin](https://github.com/pyannote/pyannote-audio)
-
-</br>
-
-![Main window](img/noScribe_main_window.png)
-(The transcript is from [this interview](https://www.youtube.com/watch?v=vOwajAbvPzQ&t=2018s) which I did in May 2022 with the Russian sociologist Natalia Savelyeva.)
-
-## Limitations
-- The download is quite large (several gigabytes) due to the included AI models. 
-- Beware that a one hour interview can take up to three hours to transcribe, depending on your machine. 
-- Poor audio and background noise will lead to poor transcription results.
-- No automatic transcription is perfect, there will always be some manual revision necessary. Use the [included Editor](#noscribeedit) to check your transcripts thoroughly. (See also ["Factors Influencing the Quality"](#factors-influencing-the-quality-of-the-transcription) and ["Known Issues"](#known-issues) below.)
-
-If you want to know more and can understand German, Rebecca Schmidt from the University of Paderborn wrote a nice [review of noScribe,](https://sozmethode.hypotheses.org/2315) also discussing its limitations. Also the German [computer magazine c't recommended noScribe in a recent review](https://www.heise.de/select/ct/2025/2/2433207582191637980).
-
-## Why the Name "noScribe"?
-The [urban dictionary](https://www.urbandictionary.com/define.php?term=Scribe) defines **scribe** as *"a person whose entire miserable existence has been reduced to academic grunge and pain".* I hope this software will make your academic life a little less painful and grungy, hence the name noScribe :)
-
-## About Me
-**Kai Dröge**, PhD in sociology (with a background in computer science), qualitative researcher and teacher, [Lucerne University for Applied Science (Switzerland)](https://www.hslu.ch/de-ch/hochschule-luzern/ueber-uns/personensuche/profile/?pid=823) and [Institute for Social Research, Frankfurt/M. (Germany)](https://www.ifs.uni-frankfurt.de/personendetails/kai-droege.html).
-
-## Donate
-NoScribe is free and always will be. However, developing it costs real money. I have purchased hardware for testing and pay Apple annually for a developer ID. If you would like to support this project, you can make a donation on Ko-Fi. Thanks! 
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/noscribe)
-
-## Download and Installation
-
-**Current Version Number: 0.7** (see [changelog](CHANGELOG.md))
-> All releases are hosted on SWITCHdrive, a secure data sharing platform for Swiss universities.
-
-### Windows
-<details>
-    <summary>Click to expand</summary>
-
-- **Download:**
-    - The **general purpose version** for normal PCs without an NVIDIA graphics card: [https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.7%2FWindows%2Fnormal](https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.7%2FWindows%2Fnormal) 
-    - A special version using **CUDA acceleration on NVIDIA graphics cards** with at least 6 GB of VRAM: [https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.7%2FWindows%2Fcuda](https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.7%2FWindows%2Fcuda). Make sure that your NVIDIA drivers are on version 570.65 or higher. You must also install the [CUDA toolkit from here](https://developer.nvidia.com/cuda-downloads?target_os=Windows) (a reboot is required afterwards).
-- **Installation**: 
-    - Start the downloaded setup file. This may take a while, be patient.
-    - If you get a warning that "Windows protected your PC" and the app comes from an "Unknown publisher", you have to trust us and click "Run anyway"
-    - To do a silent install on a larger group of computers, start the setup with the argument `/S`.
-- **Known Issues:**
-    - It seems that the RTX/GTX 1XXX generation of cards is no longer supported in CUDA. Use the normal version instead. 
-    - If you receive the following error message: "Transcription worker exited unexpectedly (code 3221226505)," try forcing the use of the CPU for transcription instead of the graphics card. This method is slower but more reliable. To do so, follow these steps: Close noScribe. Open the file `C:\Users\<USERNAME>\AppData\Local\noScribe\noScribe\config.yml` in a text editor. Change the value for `force_whisper_cpu` to `'True'`. Don't forget the quotation marks around 'True'. Now, restart NoScribe. 
-
-</details>
-
-### MacOS
-<details>
-    <summary>Click to expand</summary>
-
-ported by [gernophil](https://github.com/gernophil) </br>
-
-- **Newer Macs with Apple Silicon M1-M4 processors and macOS 14 or newer**
-    - Download: [https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.7%2FmacOS%2FApple%20Silicon](https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.7%2FmacOS%2FApple%20Silicon)
-    - Double-click on the downloaded dmg-file, then drag noScribe and noScribeEdit into the link to your applications folder (labeled "drag both here to install").
-    - You will need Apple's Rosetta2 Intel emulator since one component (ffmpeg) is still made for Intel CPUs. If you don't have it installed already, do this as follows:
-        - Open the Terminal (located at `/Applications/Utilities/Terminal.app`).
-        - Type `softwareupdate --install-rosetta` or `softwareupdate --install-rosetta --agree-to-license`.
-        - Hit enter and follow the instructions on the screen.
-    - Start noScribe and/or noScribeEdit by double-clicking the app within your applications.
-
-- **Older Macs with Intel processors**
-    - **Note: Version 0.7 is currently not available for Intel based Macs** due to incompatibilities with the newest pyannote release. You can, however, use version 0.6: [https://drive.switch.ch/index.php/apps/files/?dir=/noScribe/noScribe%20releases/noScribe%20vers.%200.6/macOS/x86_64%20(Intel)&fileid=8266174681](https://drive.switch.ch/index.php/apps/files/?dir=/noScribe/noScribe%20releases/noScribe%20vers.%200.6/macOS/x86_64%20(Intel)&fileid=8266174681).
-    - Older versions may be available here: [https://drive.switch.ch/index.php/s/EIVup04qkSHb54j](https://drive.switch.ch/index.php/s/EIVup04qkSHb54j)
-    - Unfortunately, we are not able to sign the x86_64 package correctly, so you will get a warning that noScribe and noScribeEdit are from unregistered developers. You have to manually allow noScribe and noScribeEdit to be executed, if your Gatekeeper is active. Follow these steps:
-    - Double-click the downloaded dmg-file.
-    - Drag noScribe and noScribeEdit into the link to your applications folder (labeled "drag both here to install").
-    - Start noScribe by double-clicking the app within your applications folder. You will get an error that noScribe is from an unregistered developer. Do the same with the noScribe Editor.
-    - Go to Settings -> Privacy and Security -> Scroll down until you see a message stating noScribe was prevented from starting and click "open anyway". Again, do the same with the noScribe Editor.
-    - From now on, both programs should start without issues.
-
-</details>
-
-### Linux
-<details>
-    <summary>Click to expand</summary>
-
-ported by [Eckhard Kadasch](https://github.com/eckhrd) and [Florian Dobener](https://github.com/domna); executable generated by [gernophil](https://github.com/gernophil).
-
-#### Executable Installation
-
-  - Download the CUDA or CPU version of noScribe 0.7 for Linux here: [https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.7%2FLinux](https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.7%2FLinux)
-    - Issues with noScribe 0.7 for Linux on some systems have been reported. If noScribe 0.7 for Linux does not work on your system, please use noScribe 0.6.2 while we try to solve these issues: [https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.6%2FLinux](https://drive.switch.ch/index.php/s/EIVup04qkSHb54j?path=%2FnoScribe%20vers.%200.6%2FLinux)
-  - Untar the file using the terminal command `tar -xzvf noScribe_0.7.0_cpu_linux_amd64.tar.gz` or `tar -xzvf noScribe_0.7.0_cuda_linux_amd64.tar.gz`.
-  - Execute noScribe using the terminal by `cd`ing into the noScribe folder and executing `./noScribe`.
-  - Optionally: Edit the files `noScribe.desktop` and `noScribeEdit.desktop` with a text editor and enter the complete path in the lines starting with `Exec=` and `Icon=`.
-
-#### Manual Installation From Source
-
-See [this discussion](https://github.com/kaixxx/noScribe/discussions/83) for
-more information.
-
-If you want to install from source, `git` and `git-lfs` are necessary to get
-all required pieces. The latest sources are directly fetched from the
-repository. Please use the installation above (executable installation) if
-you want to install a specific version.
 
 ```bash
-git clone https://github.com/krissi15/noScribe_own.git
-cd noScribe_own
-
-# Creates the venv, installs the dependencies and downloads the models.
-./setup.sh
-
-# Run Traudi. Remember to activate the venv in every new shell.
-source venv/bin/activate
-python3 -m noScribe
+export HF_TOKEN=hf_...
+venv/bin/python scripts/fetch_models.py --skip-whisper --pyannote
 ```
 
-The editor is optional and lives in a separate repository:
+Fehlen die Gewichte, läuft die Transkription weiter; nur die Sprechererkennung
+bricht mit einem Hinweis auf genau diesen Befehl ab.
+
+Dasselbe Token muss als Repository-Secret `HF_TOKEN` hinterlegt sein, damit der
+[CI-Workflow](.github/workflows/build-windows.yml) den Installer bauen kann.
+
+---
+
+## Bedienung
+
+### Immer sichtbar
+
+- **Audiodatei** — nahezu jedes Audio- und Videoformat. Mehrere Dateien auf einmal landen in der Warteschlange.
+- **Transkript speichern unter** — `.html` (Vorgabe, auch vom Editor lesbar), `.vtt` (Untertitel, z. B. für [EXMARaLDA](https://exmaralda.org/)) oder `.txt`.
+- **Sprache** — „Auto" erkennt sie selbst, „Multilingual" für gemischte Aufnahmen (experimentell).
+- **Modell** — `precise` ist die Empfehlung. `fast` ist auf schwachen Rechnern rund 30 % schneller, verlangt aber mehr Nacharbeit.
+- **Sprecher:in erkennen** — „auto" schätzt die Anzahl. Ist sie bekannt, verbessert die feste Angabe das Ergebnis deutlich. „none" schaltet die Erkennung ab und spart viel Zeit.
+
+### Hinter „Erweiterte Optionen"
+
+- **Start / Stopp** (hh:mm:ss) — begrenzt die Transkription auf einen Ausschnitt. **Testen Sie Ihre Einstellungen erst an drei Minuten**, bevor Sie eine Stunde transkribieren.
+- **Pausen markieren** — Sprechpausen ab 1, 2 oder 3 Sekunden erscheinen als `(...)`.
+- **Überlappende Sprache** — markiert Stellen, an denen mehrere gleichzeitig sprechen.
+- **Füllworte** — behält „ähm", „also" usw. Für wörtliche Protokolle sinnvoll.
+- **Zeitmarken** — fügt regelmäßig `[hh:mm:ss]` ein.
+
+Der Aufklapp-Zustand wird gemerkt.
+
+### Warteschlange
+
+Mehrere Aufträge lassen sich sammeln und nacheinander abarbeiten. Über das
+Aufklappmenü neben *Start* wählen Sie zwischen „sofort starten" und „in die
+Warteschlange".
+
+![Warteschlange](img/traudi_queue.png)
+
+### Editor
+
+Der Knopf *Editor* öffnet `noScribeEdit`, ein separates Programm zum Prüfen und
+Korrigieren des Transkripts. Es liegt in einem eigenen Repository und ist
+optional:
 
 ```bash
 git clone https://github.com/kaixxx/noScribeEditor.git noScribeEdit
 venv/bin/python -m pip install -r noScribeEdit/environments/requirements.txt
 ```
 
-</details>
+![Editor](img/noScribe_Editor.png)
 
-### Old versions:
-- [https://drive.switch.ch/index.php/s/EIVup04qkSHb54j](https://drive.switch.ch/index.php/s/EIVup04qkSHb54j)
+### Kommandozeile
 
-## Citation (APA Style)
-Dröge, K. (2025). noScribe. AI-powered Audio Transcription (Version XXX) [Computer software]. https://github.com/kaixxx/noScribe
+```bash
+python -m noScribe aufnahme.mp3 protokoll.html --no-gui \
+    --language German --model precise --speaker-detection 2
+```
 
-## Usage
-### Settings
-<img align="left" src="img/noScribe_settings.png" width="300">
+`python -m noScribe --help` zeigt alle Schalter, `--help-models` die
+installierten Modelle.
 
-- Select your **audio file**. NoScribe supports almost any audio or video format. You can also select several files at once for [batch transcription](#batch-transcription).
-- Select the **filename for the transcript.** You can also choose the file type: *.html is the default, supported also by the noScribe editor. *.vtt is a video subtitles format and is especially useful if you want to import your transcript into [EXMARaLDA](https://exmaralda.org/) for further annotation. *.txt exports the transcript as plain text.
-- **Start** and **Stop** accept timestamps in the format hh:mm:ss. Use this to limit the transcription to a particular part of the recording. This is especially helpful for testing your settings with a small sample before committing to transcribing the whole interview, which may take several hours. Leave **Stop** empty if you want to transcribe until the end of the audio file.
-- **Language:** Select the language of your transcript. Set it to "auto" to detect the language, or choose "multilingual" if your audio contains more than one language (experimental).
-- **Quality:** "Precise" is the recommended setting for the most accurate transcript. On slower machines, you may opt for the "fast" option. This will be quicker but might necessitate more manual revision later. You can also [install custom models](https://github.com/kaixxx/noScribe/wiki/Add-custom-Whisper-models-for-transcription), fine-tuned for specific languages, etc.
-- **Mark Pause**: If enabled, parts of your audio without voice activity will be marked as pauses. Pauses are transcribed as round brackets with one dot per second inside, e.g., "(..)" for a two-second pause. Pauses longer than 10 seconds are written out as "(XX seconds pause)" or "(XX minutes pause)". You have the option to mark either pauses of one second and more ("1sec+"), two seconds and more ("2sec+"), or only the longer ones of three seconds and more ("3sec+"). Choose "none" to disable this feature entirely.
-- **Speaker Detection:** This feature uses the Pyannote AI model to identify distinct speakers in your audio and organizes the transcript accordingly. Choose the number of speakers if known, or select "auto." Opting for "none" bypasses this step altogether, reducing the processing time by approximately half. However, the resultant transcript will be a continuous block of text without any indicators of speaker transitions.
-- **Overlapping Speech**: If enabled, noScribe attempts to mark instances where two people speak simultaneously. The overlapping section is demarcated with //double slashes//. (Note: This is an experimental feature.)
-- **Disfluencies**: If enabled, common speech disfluencies like filler words ("um"), unfinished words or sentences, etc. will also be transcribed. Note that this is not a hard on/off switch, but more of a 'recommendation' for the transcription AI model which only works to some extent.   
-- **Timestamps**: When enabled, noScribe incorporates timestamps in the format [hh:mm:ss] into the transcript either at every change of speaker or every 60 seconds. I find these timestamps somewhat distracting, hence my decision to disable them by default. However, they can be quite useful in certain contexts. Even with timestamps disabled, determining the audio timecode for a specific segment is straightforward: simply open the transcript in the noScribe Editor, navigate through the text, and the corresponding timecode will appear in the bottom right corner of the app.
+---
 
-### Transcription process
-- If you are ready, click the **Start**-button in the bottom left. **Cancel** will abort the process.
-- Be aware that **a one-hour interview can take up to three hours processing time** and will put a heavy load on your machine. Doing this on battery-power is not recommended.
-- A **progress indicator** at the bottom of the app will show how far you are into the whole process.
-- The **main window** (log tab) will show progress-messages and errors. It will also print the text of your interview during the last step of the transcription.
-- The transcript will be auto saved every few seconds under the given filename.
-- By default, noScribe produces an HTML-file. This can be opened in every common word editor (including MS Word, LibreOffice) or QDA-package (MAXQDA, ATLAS.ti, QualCoder...).
-- Before working with the transcript though, you should check it with the included editor. There will always be some errors.
+## Was die Qualität beeinflusst
 
-### Batch transcription 
-(new in version 0.7)
+**Die Tonqualität ist der wichtigste Faktor.** Ein separates Mikrofon für jede
+sprechende Person, wenig Hall, wenig Hintergrundgeräusch. Aufnahmen aus
+Videokonferenzen sind meist gut, Handyaufnahmen quer über einen Tisch selten.
 
-<img src="img/queue.png" width="800">
+Eine Stunde Audio braucht auf einer CPU je nach Rechner **zwei bis fünf
+Stunden**. Mit NVIDIA-Grafikkarte ist es ein Vielfaches schneller.
 
-- The "Queue" tab in the main window shows a list of all jobs as well as their state and progress.
-- If you start a new job while another is still running, the new job will wait in the queue to be processed afterwards.
-- To start multiple jobs at once with the same settings, select as many files as you want in the audio file dialog. The output files will be named automatically. Use the "Save transcript as" dialog to select a different output folder if needed. Otherwise, the transcripts will be stored in the same folders as the audio. 
-- The job buttons:
-    - `X` Deletes a job from the list or cancels a running one.
-    - `✔` Opens the transcript in the included editor. This also works for unfinished transcripts in case of an error or if the job was canceled by the user.
-    - `⟲` Restarts the job (only available in case of errors or cancelation).       
+Wird die Anzahl der sprechenden Personen fest angegeben statt „auto", wird die
+Zuordnung deutlich zuverlässiger.
 
-## noScribeEdit
-The included editor to check the final transcript.
+---
 
-![The transcript in the noScribe Editor](img/noScribe_Editor.png)
+## Bekannte Einschränkungen
 
-The noScribe Editor is a separate app. It will open automatically once the transcript is finished, but can also be run independently from noScribe. It contains some handy features to check your finished transcript for errors and correct them:
-- Press **Ctrl + Spacebar** (^Space on Mac) or the **orange button in the toolbar** to hear the audio which corresponds to your current position in the text.
-- The **selection of the text will follow the audio that you hear**. If you want to **make changes,** click anywhere in the text with your mouse or use the arrow keys to move the cursor. The audio will stop, and you can edit the text.
-- You can also **stop the audio** by pressing Ctrl + Spacebar again or clicking the orange button.
-- If you want to **speed up or slow down the audio**, change the "100%"-field next to the "Play/Pause Audio"-Button to the appropriate speed.
-- To change the **speaker names,** use the Search & Replace feature, accessible from the magnifying glass icon or the Edit menu.
-- Use the plus and minus icons in the toolbar to **zoom in or out**
-- You will find the **most common features of a basic text editor** in the toolbar as well as in the menu at the top (basic text formatting, cut, copy & paste, undo & redo).
-- Your typical **hotkeys** will also work (e.g., Ctrl+S for Save, Ctrl+F for Find & Replace). You can see all the hotkeys if you open the menu. As already mentioned, 'Ctrl+Space' is the hotkey you'll use the most as it starts or pauses the audio.
+**Keine automatische Transkription ist fehlerfrei.** Jedes Transkript braucht
+eine Durchsicht. Für ein Protokoll mit Beweiswert ist das keine Kür.
 
+Sehr lange Dateien können dazu führen, dass sich das Modell in Wiederholungen
+verfängt. Teilen Sie die Aufnahme über *Start* und *Stopp* in Abschnitte.
 
-The source code of the editor can be found here: [https://github.com/kaixxx/noScribeEditor](https://github.com/kaixxx/noScribeEditor)
+Bei sehr leisen oder verrauschten Passagen erfindet das Modell gelegentlich
+Text („Halluzination"). Solche Stellen fallen im Editor auf, weil sie inhaltlich
+nicht passen.
 
-## Factors Influencing the Quality of the Transcription
-- A **good audio recording with clear voices and no ambient noise** is crucial for a high-quality transcription. Investing some effort in the quality of the recording will save you much time in the manual revision process later.
-- Whisper (the AI powering noScribe) understands around 60 different languages, but the quality of the transcription varies widely between them. **Spanish, Italian, English, Portuguese and German** are best supported (see [here for more info]( https://github.com/openai/whisper#available-models-and-languages)).
-- Whisper handles **dialects** fairly well (e.g., Swiss-German), but the transcript might need more manual work in the revision.
+Meldet Traudi `Transcription worker exited unexpectedly (code 3221226505)`,
+erzwingen Sie die CPU: `force_whisper_cpu: 'True'` in der Konfiguration
+(siehe unten). Das ist langsamer, aber zuverlässiger.
 
-## Known Issues
-- The output of this software always needs to be checked for quality, misunderstandings, and wrong speaker diarization. This software is based on [OpenAI's Whisper model](https://github.com/openai/whisper). Typical word error rates can be seen [here](https://github.com/openai/whisper?tab=readme-ov-file#available-models-and-languages). See also [this paper](https://doi.org/10.1145/3576915.3624380) for a comparison of different transcription services and their errors.
-- Like any other large language model, the whisper model can sometimes **hallucinate**. This is especially prevalent in silent audio passages or when background noise is treated as "text" (see [this study from the Cornell University](https://facctconference.org/static/papers24/facct24-111.pdf) for more info about the issue). We use voice activity detection (VAD) to filter out sections without speech as best as possible. 
-  More severely, users also reported cases where words were hallucinated that would fit syntactically into the context, but were actually not present in the original audio. Such errors are especially hard to catch.
-- **Names of people, places or organizations** are often transcribed with errors.  
-- The whisper AI can sometimes get **stuck in a loop of repeating text,** especially on longer audio files. If this happens, try to transcribe shorter sections (using the "Start" and "Stop" fields in noScribe), and join them manually.
-- **Multilingual audio** is now supported, but experimental. Sometimes it can happen that words in other languages than the main language are translated.
-- **Nonverbal expressions** like laughter are not included in the transcript and must be added later in the editor if you need them.
-- **Speaker diarization:** In some recordings, the AI used by noScribe may not be able to tell the voices of certain speakers apart, even if they sound quite different to the human ear. Check the results carefully.
-- It can happen that **punctuation and capitalization** are lost over time, especially in longer interviews. If you run into this issue, you can
-  - Try to transcribe shorter sections (using the "Start" and "Stop" fields in noScribe), and join them manually.
-  - Try to use another model, especially "faster-whisper-large-v2", which is less prone to this problem. You have to install this model first as described [in the Wiki](https://github.com/kaixxx/noScribe/wiki/Add-custom-Whisper-models-for-transcription).
+---
 
+## Erweiterte Einstellungen
 
-## Advanced Options
+Es gibt derzeit **keinen Einstellungsdialog**. Die Feineinstellungen stehen in
 
-- NoScribe now also includes a command line interface, ideal for scripting. Type in `noScribe.exe --help` for more information. You may also want to use the `--no-gui` option in scripting scenarios. 
-- Config file: After the app has run for the first time, you will find a file named `config.yml` in the user config directory (on Windows: `C:\Users\<username>\AppData\Local\noScribe\noScribe\config.yml`; on Mac OS: `~/Library/Application Support/noscribe/config.yml`; on Linux: `~/.config/noScribe/config.yml`). Here, you can change a few **extra settings**, e.g., the language of the user interface and model parameters.
-- Also in the user config directory you will find a folder named `log` with detailed log-files for every transcript (also unfinished ones). This can be helpful in the case of any errors. Be aware though that these files also contain the text of your transcripts which might include sensitive information.
-- If you want to use **custom whisper models** with noScribe, follow the [instructions in the Wiki](https://github.com/kaixxx/noScribe/wiki/Add-custom-Whisper-models-for-transcription).
+```
+%LOCALAPPDATA%\Traudi\Traudi\config.yml          (Windows)
+~/.config/Traudi/config.yml                       (Linux)
+~/Library/Application Support/Traudi/config.yml   (macOS)
+```
 
-## Development and Contribution
-- I developed noScribe in python 3.12
-- I cannot host the whisper-models on GitHub because they are too large. There is a readme in the models-folder with instructions on how to get them.
-- I am happy to review tests, bug reports and pull requests (if my time allows it)
+Die Datei entsteht beim ersten Start. Interessante Schlüssel:
 
-### Translations
-- The noScribe UI has already been translated into many languages (thanks mlynar-czyk).
-- Since most of the translations have been created with ChatGPT, there will be problems. Please report any errors that you’ll find and make – if possible – a pull request with a better translation.
-- You will find the language files in the folder "trans".
-- If you change anything in the language files, make sure to follow the conventions of the YAML language.
-- If you want to change the language of the user interface, you have to change the value of the "locale" setting in the advanced settings (see above).
+| Schlüssel | Bedeutung |
+|---|---|
+| `force_whisper_cpu`, `force_pyannote_cpu` | Grafikkarte umgehen |
+| `threads` | Anzahl der Prozessorkerne |
+| `whisper_compute_type` | Rechengenauigkeit (`default`, `int8`, `float16`) |
+| `timestamp_interval`, `timestamp_color` | Aussehen der Zeitmarken |
+| `voice_activity_detection_threshold` | Empfindlichkeit der Sprachaktivitätserkennung |
+| `check_for_update` | Update-Prüfung beim Start abschalten |
 
-## Other Software
-If you are interested in open source software for the analysis of qualitative data, take a look at my other project [QualCoder](https://github.com/ccbogel/QualCoder).
+Eigene Whisper-Modelle können nach
+`%LOCALAPPDATA%\Traudi\Traudi\whisper_models\<name>` gelegt werden und
+erscheinen dann im Modell-Menü.
 
+---
 
+## Installer selbst bauen
 
+```powershell
+choco install nsis           # einmalig, als Administrator
+.\setup.bat                  # falls noch nicht geschehen
+venv\Scripts\activate
+python pyinstaller\win_build.py            # CPU
+python pyinstaller\win_build.py --cuda     # CUDA
+python pyinstaller\win_build.py --skip-nsis  # nur den dist-Ordner
+```
 
+Das Ergebnis liegt unter `pyinstaller/win_installer/`. Der Installer enthält
+**keine** Whisper-Gewichte — die lädt Traudi beim ersten Start. Das entpackte
+Programmverzeichnis bleibt damit bei rund 800 MB statt über 4 GB.
 
+Der Workflow [`build-windows.yml`](.github/workflows/build-windows.yml) macht
+dasselbe in GitHub Actions und hängt das Ergebnis an ein Release, sobald ein
+Tag der Form `v*` gepusht wird.
+
+---
+
+## Mitwirken
+
+Fehlerberichte und Vorschläge über die
+[Issues](https://github.com/krissi15/noScribe_own/issues).
+
+**Übersetzungen** liegen unter [`trans/`](trans/), eine YAML-Datei je Sprache.
+Neue Schlüssel müssen in **allen neun** Dateien stehen, sonst zeigt die
+Oberfläche den Schlüsselnamen an. Deutsch ist die Leitsprache.
+
+**Farben** stehen zentral in [`noScribe/theme/`](noScribe/theme/): die
+CustomTkinter-Theme-Datei `rlp_justiz.json` für alles, was das Framework selbst
+zeichnet, und `COLORS` in `__init__.py` für Leinwand, Text-Markierungen und
+Kurzinfos. Bitte keine Farben direkt in `main.py` schreiben.
+
+---
+
+## Herkunft und Lizenz
+
+Traudi ist ein Fork von [noScribe](https://github.com/kaixxx/noScribe) von
+**Kai Dröge** (Hochschule Luzern / Institut für Sozialforschung Frankfurt),
+portiert nach macOS von **Philipp Schneider**, nach Linux von **Eckhard Kadasch**
+und **Florian Dobener**.
+
+Die Anwendung steht auf den Schultern von
+[Whisper](https://github.com/openai/whisper) (OpenAI),
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) (Guillaume Klein) und
+[pyannote.audio](https://github.com/pyannote/pyannote-audio) (Hervé Bredin).
+
+Lizenz: **GPL-3.0**, siehe [LICENSE.txt](LICENSE.txt). Wer Traudi weitergibt,
+muss den Quellcode und diesen Hinweis mitgeben.
+
+### Zum Landeswappen
+
+Das Wappen von Rheinland-Pfalz ist ein Hoheitszeichen. Seine Verwendung durch
+Stellen außerhalb der Landesverwaltung ist nach dem Landesgesetz über die
+Hoheitszeichen genehmigungspflichtig. Traudi verwendet deshalb **nur die Farben**
+des Wappens (Schwarz, Rot, Gold, Silber) sowie eine Wortmarke — **kein
+Wappenbild**. Läuft die Anwendung offiziell im Auftrag des Ministeriums, kann das
+Wappen ergänzt werden; die verbindlichen Vorgaben stehen im Corporate-Design-Portal
+des Landes ([cd.rlp.de](https://cd.rlp.de/)).
+
+### Zitieren
+
+Dröge, K. (2025). *noScribe. AI-powered Audio Transcription* [Computer software].
+https://github.com/kaixxx/noScribe

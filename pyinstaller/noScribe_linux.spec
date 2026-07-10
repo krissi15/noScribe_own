@@ -57,7 +57,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['../img/noScribeLogo.ico'],
+    icon=['../img/traudi_logo.ico'],
 )
 coll = COLLECT(
     exe,
