@@ -127,9 +127,11 @@ def download(spec: ModelSpec, target: Path, token: Optional[str] = None,
     """Lädt ein Modell nach ``target``.
 
     Geladen wird zunächst nach ``<target>.part``; erst ein vollständiger
-    Download wird an seinen endgültigen Platz umbenannt. Ein Abbruch
-    hinterlässt damit kein Verzeichnis, das ``is_installed`` fälschlich für
-    fertig hält.
+    Download wandert an seinen endgültigen Platz. Ein Abbruch hinterlässt damit
+    kein Verzeichnis, das ``is_installed`` fälschlich für fertig hält.
+
+    ``target`` wird nicht ersetzt, sondern ergänzt: dort liegt bereits die
+    versionierte NOSCRIBE_README.txt, die der Installer-Build braucht.
     """
     from huggingface_hub import snapshot_download
 
@@ -160,12 +162,15 @@ def download(spec: ModelSpec, target: Path, token: Optional[str] = None,
     shutil.rmtree(staging / '.cache', ignore_errors=True)
 
     source = staging / spec.strip_prefix if spec.strip_prefix else staging
-    if target.exists():
-        shutil.rmtree(target)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(source), str(target))
-    if staging.exists():
-        shutil.rmtree(staging, ignore_errors=True)
+    target.mkdir(parents=True, exist_ok=True)
+    for item in source.iterdir():
+        destination = target / item.name
+        if destination.is_dir():
+            shutil.rmtree(destination)
+        elif destination.exists():
+            destination.unlink()
+        shutil.move(str(item), str(destination))
+    shutil.rmtree(staging, ignore_errors=True)
 
     if on_progress and total:
         on_progress(total, total)

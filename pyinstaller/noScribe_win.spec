@@ -20,12 +20,25 @@ noScribe_hiddenimports = []
 # the user's data directory on first start; see noScribe/model_download.py.
 # The diarization weights are only 32 MB and stay in the installer, because
 # their HuggingFace repository is gated and end users have no token.
+
+
+def model_dir_marker(name):
+    """The model folders must exist in the bundle -- WhisperModelManager resolves
+    them with importlib.resources, which needs a real directory, and PyInstaller
+    cannot add an empty one. Ship the readme, or a placeholder if it is gone."""
+    folder = os.path.join(project_root, 'models', name)
+    marker = 'NOSCRIBE_README.txt'
+    if not os.path.isfile(os.path.join(folder, marker)):
+        marker = '.keep'
+        os.makedirs(folder, exist_ok=True)
+        open(os.path.join(folder, marker), 'a').close()
+    return (f'../models/{name}/{marker}', f'./models/{name}/')
+
+
 noScribe_datas += [
 ('../trans/', './trans/'),
-# The model folders must exist in the bundle: WhisperModelManager resolves
-# them with importlib.resources, which needs a real directory.
-('../models/fast/NOSCRIBE_README.txt', './models/fast/'),
-('../models/precise/NOSCRIBE_README.txt', './models/precise/'),
+model_dir_marker('fast'),
+model_dir_marker('precise'),
 ('../LICENSE.txt', '.'),
 ('../img/traudi_logo.ico', 'img/'),
 ('../img/traudi_logo.png', 'img/'),
