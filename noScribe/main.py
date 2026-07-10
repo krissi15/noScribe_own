@@ -1533,8 +1533,10 @@ class App(ctk.CTk):
         # check for new releases
         if get_config('check_for_update', 'True') == 'True':
             try:
+                # This fork, not upstream: otherwise an upstream noScribe release
+                # would announce itself as a new Traudi version.
                 latest_release = json.loads(urllib.request.urlopen(
-                    urllib.request.Request('https://api.github.com/repos/kaixxx/noScribe/releases/latest',
+                    urllib.request.Request('https://api.github.com/repos/krissi15/noScribe_own/releases/latest',
                     headers={'Accept': 'application/vnd.github.v3+json'},),
                     timeout=2).read())
                 latest_release_version = str(latest_release['tag_name']).lstrip('v')
@@ -2702,6 +2704,13 @@ class App(ctk.CTk):
 
                         self.logn()
                         self.logn(t('start_identifying_speakers'), 'highlight')
+
+                        # Check before spending a minute on audio the pipeline
+                        # cannot load: the gated weights are fetched separately.
+                        with impres.as_file(impres.files("pyannote")) as pyannote_dir:
+                            if not model_download.pyannote_weights_present(pyannote_dir):
+                                raise FileNotFoundError(t('err_pyannote_weights_missing'))
+
                         self.logn(t('loading_pyannote'))
                         # self.set_progress(1, 100, job.speaker_detection)
 

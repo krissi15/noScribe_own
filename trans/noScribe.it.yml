@@ -1,4 +1,5 @@
 it:
+  err_pyannote_weights_missing: "Mancano i pesi per il riconoscimento dei parlanti. Scaricali con: python scripts/fetch_models.py --skip-whisper --pyannote (serve un token HuggingFace, vedi README)."
   models_title: "Configura il modello vocale"
   models_intro: "Traudi ha bisogno di un modello vocale una sola volta. Viene scaricato da HuggingFace e conservato su disco."
   models_choose: "Modello:"
@@ -30,7 +31,7 @@ it:
     Buon divertimento!
 
   setup_message: 'Prima esecuzione: Completa la configurazione...'
-  new_release: 'È disponibile una nuova versione di noScribe (%{v}):'
+  new_release: 'È disponibile una nuova versione di Traudi (%{v}):'
   new_release_download: 'Scarica: '
 
   # Elementi dell'interfaccia utente
@@ -155,7 +156,7 @@ it:
   log_open_partial: "Apertura trascrizione parziale: %{file}"
 
   # Contenuti del documento
-  doc_header: 'Trascritto con noScribe vers. %{version}'
+  doc_header: 'Trascritto con Traudi vers. %{version}'
   doc_header_audio: 'File audio: %{file}'
   pause_minutes: '(%{minutes} minuti pausa)'
   pause_seconds: '(%{seconds} secondi di pausa)'

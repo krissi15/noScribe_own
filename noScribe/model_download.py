@@ -75,6 +75,14 @@ def is_installed(model_dir: Path) -> bool:
     return (model_dir / 'model.bin').is_file()
 
 
+PYANNOTE_WEIGHTS = ('segmentation/pytorch_model.bin', 'embedding/pytorch_model.bin')
+
+
+def pyannote_weights_present(pyannote_dir: Path) -> bool:
+    """Die beiden großen .bin-Dateien liegen nicht im Repository."""
+    return all((Path(pyannote_dir) / rel).is_file() for rel in PYANNOTE_WEIGHTS)
+
+
 def missing_whisper_models(*search_dirs: Path) -> list:
     """Namen der Whisper-Modelle, die in keinem der Verzeichnisse liegen."""
     missing = []

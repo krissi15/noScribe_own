@@ -1,4 +1,5 @@
 ja:
+  err_pyannote_weights_missing: "話者認識の重みがありません。次のコマンドで取得してください: python scripts/fetch_models.py --skip-whisper --pyannote (HuggingFace のトークンが必要です。README を参照)。"
   models_title: "音声モデルのセットアップ"
   models_intro: "Traudi には音声モデルが一度だけ必要です。HuggingFace からダウンロードして保存します。"
   models_choose: "モデル:"
@@ -31,7 +32,7 @@ ja:
     お楽しみください！
 
   setup_message: '初回実行：セットアップを完了してください...'
-  new_release: 'noScribe の新しいバージョンが利用可能です (%{v}):'
+  new_release: 'Traudi の新しいバージョンが利用可能です (%{v}):'
   new_release_download: 'ダウンロード: '
 
   # UI要素
@@ -155,7 +156,7 @@ ja:
   log_open_partial: "部分的な書き起こしを開く: %{file}"
 
   # ドキュメント内容
-  doc_header: 'noScribe vers. %{version}で転写されました'
+  doc_header: 'Traudi vers. %{version}で転写されました'
   doc_header_audio: '音声ファイル：%{file}'
   pause_minutes: '(%{minutes}分[秒]休止)'
   pause_seconds: '(%{seconds}秒休止)'
