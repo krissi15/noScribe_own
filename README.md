@@ -27,10 +27,15 @@ läuft über PyAV):
 ```powershell
 git clone https://github.com/krissi15/noScribe_own.git
 cd noScribe_own
-.\setup.ps1              # CPU;  .\setup.ps1 -Cuda  für CUDA 12.8
+.\setup.bat              # CPU;  .\setup.bat -Cuda  für CUDA 12.8
 venv\Scripts\activate
 python -m noScribe
 ```
+
+`setup.bat` ruft nur `setup.ps1` auf. Der Umweg ist nötig, weil Windows das direkte
+Ausführen von PowerShell-Skripten standardmäßig verbietet (`ExecutionPolicy`
+`Restricted`). Wer die Richtlinie ohnehin gelockert hat, kann `.\setup.ps1` direkt
+aufrufen.
 
 ```bash
 # macOS (Apple Silicon) / Linux
