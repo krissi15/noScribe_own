@@ -1,6 +1,18 @@
 zh-CN: &defaults
-  app_header: 基于AI的音频转录
-  welcome_message: 你好，noScribe已准备就绪！
+  models_title: "设置语音模型"
+  models_intro: "Traudi 需要一次性下载语音模型。模型从 HuggingFace 下载并保存在本地。"
+  models_choose: "模型："
+  models_download: "下载"
+  models_later: "稍后"
+  models_progress: "正在下载 %{m} … %{p} %%"
+  models_done: "模型 %{m} 已就绪。"
+  models_error: "下载失败：%{e}"
+  models_none: "未安装语音模型。没有模型无法转录。"
+  app_name: Traudi
+  app_authority: "Ministerium der Justiz · Rheinland-Pfalz"
+  app_header: 面向司法机构的转录
+  label_advanced: 高级选项
+  welcome_message: 你好，Traudi已准备就绪！
   welcome_credits: >
 
     版本号：%{v}，Kai Dröge %{y}

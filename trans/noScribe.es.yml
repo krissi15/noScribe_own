@@ -1,6 +1,18 @@
 es:
-  app_header: Transcripción de audio con IA
-  welcome_message: ¡Hola! ¡noScribe está listo!
+  models_title: "Configurar modelo de voz"
+  models_intro: "Traudi necesita un modelo de voz una sola vez. Se descarga de HuggingFace y se guarda en el disco."
+  models_choose: "Modelo:"
+  models_download: "Descargar"
+  models_later: "Más tarde"
+  models_progress: "Descargando %{m} … %{p} %%"
+  models_done: "El modelo %{m} está listo."
+  models_error: "Error en la descarga: %{e}"
+  models_none: "No hay modelo de voz instalado. Sin él no se puede transcribir."
+  app_name: Traudi
+  app_authority: "Ministerium der Justiz · Rheinland-Pfalz"
+  app_header: Transcripción para la Justicia
+  label_advanced: Opciones avanzadas
+  welcome_message: ¡Hola! ¡Traudi está listo!
   welcome_credits: >
 
     Versión %{v}, Kai Dröge %{y}

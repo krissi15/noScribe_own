@@ -2,7 +2,7 @@
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('../img/graphic_sw.png', 'img'), ('../LICENSE.txt', '.'), ('../models/precise', 'models/precise/'), ('../models/fast', 'models/fast/'), ('../prompts/prompt.yml', 'prompts'), ('../prompts/prompt_nd.yml', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
+datas = [('../img/traudi_logo.ico', 'img'), ('../img/traudi_logo.png', 'img'), ('../LICENSE.txt', '.'), ('../models/precise', 'models/precise/'), ('../models/fast', 'models/fast/'), ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'), ('../prompts/prompt.yml', 'prompts'), ('../prompts/prompt_nd.yml', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
 binaries = []
 hiddenimports = []
 datas += collect_data_files('faster_whisper')
@@ -44,7 +44,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['../img/noScribeLogo.ico'],
+    icon=['../img/traudi_logo.ico'],
 )
 coll = COLLECT(
     exe,
@@ -58,7 +58,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='noScribe.app',
-    icon='../img/noScribeLogo.ico',
+    icon='../img/traudi_logo.ico',
     bundle_identifier='org.noScribe.noScribe',
     info_plist={"CFBundleShortVersionString":"0.7.1"},
 )

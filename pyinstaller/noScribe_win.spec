@@ -16,17 +16,27 @@ noScribe_datas = []
 noScribe_binaries = []
 noScribe_hiddenimports = []
 
+# The Whisper models (0.8 / 1.6 GB) are NOT bundled. Traudi fetches them into
+# the user's data directory on first start; see noScribe/model_download.py.
+# The diarization weights are only 32 MB and stay in the installer, because
+# their HuggingFace repository is gated and end users have no token.
 noScribe_datas += [
-('../models/precise/', './models/precise/'), 
-('../models/fast/', './models/fast/'), 
-('../noScribeEdit/', './noScribeEdit/'), 
-('../trans/', './trans/'), 
-('../img/graphic_sw.png', 'img/'), 
-('../LICENSE.txt', '.'), 
-('../img/noScribeLogo.ico', 'img/'), 
+('../trans/', './trans/'),
+# The model folders must exist in the bundle: WhisperModelManager resolves
+# them with importlib.resources, which needs a real directory.
+('../models/fast/NOSCRIBE_README.txt', './models/fast/'),
+('../models/precise/NOSCRIBE_README.txt', './models/precise/'),
+('../LICENSE.txt', '.'),
+('../img/traudi_logo.ico', 'img/'),
+('../img/traudi_logo.png', 'img/'),
+('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'),
 ('../prompts/prompt.yml', 'prompts/'),
-('../prompts/prompt_nd.yml', 'prompts/'), 
+('../prompts/prompt_nd.yml', 'prompts/'),
 ('../README.md', '.')]
+
+# The editor lives in a separate repository and may not be checked out.
+if os.path.isdir(os.path.join(project_root, 'noScribeEdit')):
+    noScribe_datas += [('../noScribeEdit/', './noScribeEdit/')]
 noScribe_datas += collect_data_files('customtkinter')
 noScribe_datas += copy_metadata('AdvancedHTMLParser')
 noScribe_datas += collect_data_files('faster_whisper')
@@ -81,7 +91,7 @@ noScribe_exe = EXE(
     noScribe_a.scripts,
     [],
     exclude_binaries=True,
-    name='noScribe',
+    name='Traudi',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -93,7 +103,7 @@ noScribe_exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['../img/noScribeLogo.ico'],
+    icon=['../img/traudi_logo.ico'],
 )
 
 # assemble the dist folder with all needed DLLs, datas, etc.
@@ -104,5 +114,5 @@ noScribe_coll = COLLECT(
     noScribe_a.datas,
     strip=False,
     upx=False,
-    name='noScribe'
+    name='Traudi'
 )

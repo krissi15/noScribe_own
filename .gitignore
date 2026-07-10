@@ -6,7 +6,6 @@ __pycache__/
 .vscode/
 noScribeEdit/*
 !noScribeEdit/readme.txt
-scripts/
 
 *.code-workspace
 auto-py-to-exe*.*
@@ -23,6 +22,7 @@ models/precise/*
 models/fast/*
 !models/fast/NOSCRIBE_README.txt
 models/empty
+models/*.part
 
 .DS_Store
 stuff/
@@ -45,3 +45,7 @@ diarize_x86_64_mod_unsigned
 # Large pyannote model weights (downloaded separately, not source)
 pyannote/embedding/pytorch_model.bin
 pyannote/segmentation/pytorch_model.bin
+
+# venv created by setup.ps1 / setup.sh
+venv/
+.venv/

@@ -1,6 +1,18 @@
 ja:
-  app_header: AIパワード音声転写
-  welcome_message: こんにちは、noScribeが準備完了です！
+  models_title: "音声モデルのセットアップ"
+  models_intro: "Traudi には音声モデルが一度だけ必要です。HuggingFace からダウンロードして保存します。"
+  models_choose: "モデル:"
+  models_download: "ダウンロード"
+  models_later: "あとで"
+  models_progress: "%{m} をダウンロード中 … %{p} %%"
+  models_done: "モデル %{m} の準備ができました。"
+  models_error: "ダウンロードに失敗しました: %{e}"
+  models_none: "音声モデルがインストールされていません。モデルがないと文字起こしできません。"
+  app_name: Traudi
+  app_authority: "Ministerium der Justiz · Rheinland-Pfalz"
+  app_header: 司法のための音声文字起こし
+  label_advanced: 詳細オプション
+  welcome_message: こんにちは、Traudiが準備完了です！
   welcome_credits: >
     
     バージョン %{v}、Kai Dröge %{y}

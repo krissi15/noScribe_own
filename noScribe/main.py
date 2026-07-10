@@ -49,10 +49,10 @@ from customtkinter.windows.widgets.scaling import CTkScalingBaseClass
 from faster_whisper.audio import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
-from PIL import Image
 
-from . import audio, exception, transcription, utils
+from . import audio, exception, model_download, transcription, utils
 from .CTkToolTips import CTkToolTip
+from .theme import COLORS, theme_path
 from .tkHyperlinkManager import HyperlinkManager
 
 if platform.system() == "Darwin": # = MAC
@@ -86,8 +86,8 @@ logger = logging.getLogger()
 app_version = '0.7.2'
 app_year = '2026'
 
-ctk.set_appearance_mode('dark')
-ctk.set_default_color_theme('blue')
+ctk.set_appearance_mode('light')
+ctk.set_default_color_theme(theme_path())
 
 default_html = """
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
@@ -174,7 +174,7 @@ languages = {
 suppported_locales = ["de", "en", "es", "fr", "it", "ja", "pt", "ru", "zh"]
 
 # config
-config_dir = appdirs.user_config_dir('noScribe')
+config_dir = appdirs.user_config_dir('Traudi')
 if not os.path.exists(config_dir):
     os.makedirs(config_dir)
 
@@ -289,7 +289,7 @@ def _show_startup_error(message: str) -> None:
     try:
         root = tk.Tk()
         root.withdraw()
-        tk.messagebox.showerror(title='noScribe', message=message)
+        tk.messagebox.showerror(title='Traudi', message=message)
     except Exception as tk_error:
         print(f"ERROR: {message}", file=sys.stderr)
     finally:
@@ -372,7 +372,7 @@ class TranscriptionJob:
         self.whisper_temperature: float = 0.0
         self.whisper_compute_type: str = 'default'
         self.timestamp_interval: int = 60_000
-        self.timestamp_color: str = '#78909C'
+        self.timestamp_color: str = COLORS['timestamp']
         self.pause_marker: str = '.'
         self.auto_save: bool = True
         self.whisper_xpu: str = 'cpu' 
@@ -574,7 +574,7 @@ class TranscriptionQueue:
         try:
             if self.has_output_conflict(transcript_file, ignore_job=ignore_job):
                 msg = t('output_override')
-                return tk.messagebox.askyesno(title='noScribe', message=msg)
+                return tk.messagebox.askyesno(title=t('app_name'), message=msg)
         except Exception:
             pass
         return True
@@ -645,7 +645,7 @@ def create_transcription_job(audio_file=None, transcript_file=None, start_time=N
     job.whisper_temperature = get_config('whisper_temperature', 0.0)
     job.whisper_compute_type = get_config('whisper_compute_type', 'default')
     job.timestamp_interval = get_config('timestamp_interval', 60_000)
-    job.timestamp_color = get_config('timestamp_color', '#78909C')
+    job.timestamp_color = get_config('timestamp_color', COLORS['timestamp'])
     job.pause_marker = get_config('pause_seconds_marker', '.')
     job.auto_save = False if get_config('auto_save', 'True') == 'False' else True
         
@@ -782,6 +782,31 @@ class TimeEntry(ctk.CTkEntry): # special Entry box to enter time in the format h
                     if self.get()[i:i+1] != ':':
                         self.insert(i, ':')
 
+# Styling of the small icon buttons inside a queue row. They sit on the light
+# row background, so they cannot use the red primary button style.
+ROW_BTN = {
+    'fg_color': COLORS['row_btn'],
+    'hover_color': COLORS['row_btn_hover'],
+    'text_color': COLORS['black'],
+}
+ROW_BTN_DANGER = {
+    'fg_color': COLORS['red'],
+    'hover_color': COLORS['red_hover'],
+    'text_color': COLORS['white'],
+}
+
+# Red is reserved for the primary action (Start), so every other button is an
+# outline button. "Cancel" only differs by its text color.
+SECONDARY_BTN = {
+    'fg_color': 'transparent',
+    'hover_color': COLORS['bg'],
+    'text_color': COLORS['black'],
+    'border_width': 1,
+    'border_color': COLORS['border'],
+}
+DANGER_BTN = dict(SECONDARY_BTN, text_color=COLORS['error'])
+
+
 class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
     """A custom frame that can display a progress bar as its background with text overlays"""
     
@@ -789,17 +814,17 @@ class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
         ctk.CTkFrame.__init__(self, master, **kwargs)
         CTkScalingBaseClass.__init__(self, scaling_type="widget")
         if not progress_color:
-            progress_color = ctk.ThemeManager.theme['CTkProgressBar']['progress_color'][1]
+            progress_color = COLORS['gold']
         
         self.progress = progress
         self.progress_color = progress_color
         self.base_color = self._fg_color
         self.show_progress = False  # Only show progress during processing
-        
+
         # Store text content
         self.name_text = ""
         self.status_text = ""
-        self.status_color = "lightgray"
+        self.status_color = COLORS['status_waiting']
         
         # Create a canvas to draw the progress background and text
         self.progress_canvas = tk.Canvas(self, highlightthickness=0)
@@ -831,7 +856,7 @@ class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
         self.name_text = text
         self._update_progress_display()
     
-    def set_status_text(self, text, color="lightgray"):
+    def set_status_text(self, text, color=COLORS['status_waiting']):
         """Set the status text and color to display"""
         self.status_text = text
         self.status_color = color
@@ -893,8 +918,9 @@ class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
         # Reserve space for up to 3 buttons (X, ⟲/✔, ✔)
         button_area_width = 3 * self._apply_widget_scaling(30 + 5)
                
-        # Draw base background
-        base_color = self.base_color[1] if isinstance(self.base_color, tuple) else self.base_color
+        # Draw base background. tk.Canvas knows nothing about the CTk theme, so
+        # the appearance mode has to be resolved by hand.
+        base_color = self._apply_appearance_mode(self.base_color)
         self.progress_canvas.configure(bg=base_color)
         
         # Draw progress bar only if show_progress is True and there's progress
@@ -915,7 +941,7 @@ class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
                 10, height // 2,
                 text=self.name_text,
                 anchor="w",
-                fill="lightgray",
+                fill=COLORS['black'],
                 font=("", font_size)
             )
         
@@ -929,6 +955,123 @@ class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
                 fill=self.status_color,
                 font=("", font_size)
             )
+
+class ModelDownloadDialog(ctk.CTkToplevel):
+    """Erstlauf-Dialog: lädt ein Whisper-Modell in das Nutzerverzeichnis.
+
+    Der Download läuft in einem Thread; der Fortschritt wird über eine Queue
+    zurückgegeben und im Tk-Thread gepollt. Direkte Widget-Zugriffe aus dem
+    Download-Thread wären nicht threadsicher.
+    """
+
+    def __init__(self, master, target_dir: Path):
+        super().__init__(master)
+        self.target_dir = target_dir
+        self.downloaded_model = None
+        self._queue = pyqueue.Queue()
+        self._thread = None
+
+        self.title(t('models_title'))
+        self.geometry('460x230')
+        self.resizable(False, False)
+        self.transient(master)
+        self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        body = ctk.CTkFrame(self, fg_color='transparent')
+        body.pack(fill='both', expand=True, padx=20, pady=20)
+
+        ctk.CTkLabel(body, text=t('models_intro'), wraplength=410, justify='left',
+                     anchor='w').pack(fill='x', pady=(0, 15))
+
+        row = ctk.CTkFrame(body, fg_color='transparent')
+        row.pack(fill='x')
+        ctk.CTkLabel(row, text=t('models_choose')).pack(side='left')
+        self.option_model = ctk.CTkOptionMenu(row, width=140,
+                                              values=list(model_download.WHISPER_MODELS))
+        self.option_model.set('precise')
+        self.option_model.pack(side='right')
+
+        self.status_label = ctk.CTkLabel(body, text='', anchor='w',
+                                         text_color=COLORS['text_muted'])
+        self.status_label.pack(fill='x', pady=(15, 4))
+
+        self.progress = ctk.CTkProgressBar(body, mode='determinate')
+        self.progress.set(0)
+        self.progress.pack(fill='x')
+
+        buttons = ctk.CTkFrame(body, fg_color='transparent')
+        buttons.pack(fill='x', pady=(18, 0))
+        self.button_later = ctk.CTkButton(buttons, text=t('models_later'), width=100,
+                                          command=self._on_close, **SECONDARY_BTN)
+        self.button_later.pack(side='right')
+        self.button_download = ctk.CTkButton(buttons, text=t('models_download'), width=120,
+                                             command=self._start)
+        self.button_download.pack(side='right', padx=(0, 10))
+
+    def _set_busy(self, busy: bool):
+        """Während des Downloads bleibt das Fenster stehen.
+
+        Sonst schriebe der Worker-Thread weiter in zerstörte Widgets.
+        """
+        state = ctk.DISABLED if busy else ctk.NORMAL
+        self.button_download.configure(state=state)
+        self.option_model.configure(state=state)
+        self.button_later.configure(state=state)
+        self.protocol("WM_DELETE_WINDOW", (lambda: None) if busy else self._on_close)
+
+    def _start(self):
+        name = self.option_model.get()
+        self._set_busy(True)
+
+        def worker():
+            try:
+                model_download.download(
+                    model_download.WHISPER_MODELS[name],
+                    self.target_dir / name,
+                    on_progress=lambda done, total: self._queue.put(('progress', done, total)),
+                )
+                self._queue.put(('done', name, None))
+            except Exception as exc:
+                self._queue.put(('error', name, exc))
+
+        self._thread = Thread(target=worker, daemon=True)
+        self._thread.start()
+        self.after(100, self._poll)
+
+    def _poll(self):
+        if not self.winfo_exists():
+            return
+        try:
+            while True:
+                kind, a, b = self._queue.get_nowait()
+                if kind == 'progress':
+                    pct = int(a * 100 / b) if b else 0
+                    self.progress.set(pct / 100)
+                    self.status_label.configure(
+                        text=t('models_progress', m=self.option_model.get(), p=pct))
+                elif kind == 'done':
+                    self.progress.set(1)
+                    self.status_label.configure(text=t('models_done', m=a))
+                    self.downloaded_model = a
+                    self._set_busy(False)
+                    self.after(700, self._on_close)
+                    return
+                elif kind == 'error':
+                    self.status_label.configure(text=t('models_error', e=b),
+                                                text_color=COLORS['error'])
+                    self._set_busy(False)
+                    return
+        except pyqueue.Empty:
+            pass
+        self.after(100, self._poll)
+
+    def _on_close(self):
+        if not self.winfo_exists():
+            return
+        self.grab_release()
+        self.destroy()
+
 
 def _init_app_state(app):
     app._headless = False
@@ -969,11 +1112,11 @@ class App(ctk.CTk):
         _init_app_state(self)
 
         # configure window
-        self.title('noScribe - ' + t('app_header'))
+        self.title(t('app_name') + ' – ' + t('app_header'))
         if platform.system() in ("Darwin", "Linux"):
-            self.geometry(f"{1100}x{765}")
+            self.geometry(f"{1040}x{735}")
         else:
-            self.geometry(f"{1100}x{690}")
+            self.geometry(f"{1040}x{660}")
 
         if platform.system() in ("Darwin", "Windows"):
             self.iconbitmap(impres.files("img") / "traudi_logo.ico")
@@ -983,29 +1126,43 @@ class App(ctk.CTk):
             )
 
         # header
-        self.frame_header = ctk.CTkFrame(self, height=100)
+        self.frame_header = ctk.CTkFrame(self, height=64, corner_radius=0, fg_color=COLORS['black'])
+        self.frame_header.pack_propagate(False)
         self.frame_header.pack(padx=0, pady=0, anchor='nw', fill='x')
 
         self.frame_header_logo = ctk.CTkFrame(self.frame_header, fg_color='transparent')
-        self.frame_header_logo.pack(anchor='w', side='left')
+        self.frame_header_logo.pack(anchor='w', side='left', padx=20)
 
-        # logo
-        self.logo_label = ctk.CTkLabel(self.frame_header_logo, text="noScribe", font=ctk.CTkFont(size=42, weight="bold"))
-        self.logo_label.pack(padx=20, pady=[40, 0], anchor='w')
+        # wordmark
+        self.logo_label = ctk.CTkLabel(self.frame_header_logo, text=t('app_name'),
+                                       font=ctk.CTkFont(size=24, weight="bold"),
+                                       text_color=COLORS['white'])
+        self.logo_label.pack(pady=[10, 0], anchor='w')
 
         # sub header
-        self.header_label = ctk.CTkLabel(self.frame_header_logo, text=t('app_header'), font=ctk.CTkFont(size=16, weight="bold"))
-        self.header_label.pack(padx=20, pady=[0, 20], anchor='w')
-        # graphic
-        self.header_graphic = ctk.CTkImage(
-            dark_image=Image.open(impres.files("img") / "graphic_sw.png"),
-            size=(926,119)
-        )
-        self.header_graphic_label = ctk.CTkLabel(self.frame_header, image=self.header_graphic, text='')
-        self.header_graphic_label.pack(anchor='ne', side='right', padx=[30,30])
+        self.header_label = ctk.CTkLabel(self.frame_header_logo, text=t('app_header'),
+                                         font=ctk.CTkFont(size=11),
+                                         text_color=COLORS['border'])
+        self.header_label.pack(pady=[0, 10], anchor='w')
+
+        # The state coat of arms is a protected emblem (WappG RP), so the origin
+        # of the app is stated in words and by the flag colours below.
+        self.authority_label = ctk.CTkLabel(self.frame_header, text=t('app_authority'),
+                                            font=ctk.CTkFont(size=12),
+                                            text_color=COLORS['white'])
+        self.authority_label.pack(anchor='e', side='right', padx=20)
+
+        # Accent rule in the state colours. The black band is the header itself,
+        # which is why only red and gold are drawn here.
+        self.frame_accent = ctk.CTkFrame(self, height=4, corner_radius=0, fg_color='transparent')
+        self.frame_accent.pack_propagate(False)
+        self.frame_accent.pack(padx=0, pady=0, anchor='nw', fill='x')
+        for band_color in (COLORS['red'], COLORS['gold']):
+            band = ctk.CTkFrame(self.frame_accent, height=4, corner_radius=0, fg_color=band_color)
+            band.pack(side='left', fill='both', expand=True)
 
         # main window
-        self.frame_main = ctk.CTkFrame(self)
+        self.frame_main = ctk.CTkFrame(self, corner_radius=0, fg_color='transparent')
         self.frame_main.pack(padx=0, pady=0, anchor='nw', expand=True, fill='both')
 
         # create sidebar frame for options
@@ -1021,7 +1178,7 @@ class App(ctk.CTk):
         self.label_audio_file = ctk.CTkLabel(self.scrollable_options, text=t('label_audio_file'))
         self.label_audio_file.pack(padx=20, pady=[20,0], anchor='w')
 
-        self.frame_audio_file = ctk.CTkFrame(self.scrollable_options, width=260, height=33, corner_radius=8, border_width=2)
+        self.frame_audio_file = ctk.CTkFrame(self.scrollable_options, width=260, height=33, corner_radius=6, border_width=1)
         self.frame_audio_file.pack(padx=20, pady=[0,10], anchor='w')
 
         self.button_audio_file_name = ctk.CTkButton(self.frame_audio_file, width=200, corner_radius=8, bg_color='transparent', 
@@ -1030,14 +1187,15 @@ class App(ctk.CTk):
                                                     text=t('label_audio_file_name'), command=self.button_audio_file_event)
         self.button_audio_file_name.place(x=3, y=3)
 
-        self.button_audio_file = ctk.CTkButton(self.frame_audio_file, width=45, height=29, text='📂', command=self.button_audio_file_event)
+        self.button_audio_file = ctk.CTkButton(self.frame_audio_file, width=45, height=29, text='…',
+                                               command=self.button_audio_file_event, **SECONDARY_BTN)
         self.button_audio_file.place(x=213, y=2)
 
         # input transcript file name
         self.label_transcript_file = ctk.CTkLabel(self.scrollable_options, text=t('label_transcript_file'))
         self.label_transcript_file.pack(padx=20, pady=[10,0], anchor='w')
 
-        self.frame_transcript_file = ctk.CTkFrame(self.scrollable_options, width=260, height=33, corner_radius=8, border_width=2)
+        self.frame_transcript_file = ctk.CTkFrame(self.scrollable_options, width=260, height=33, corner_radius=6, border_width=1)
         self.frame_transcript_file.pack(padx=20, pady=[0,10], anchor='w')
 
         self.button_transcript_file_name = ctk.CTkButton(self.frame_transcript_file, width=200, corner_radius=8, bg_color='transparent', 
@@ -1046,10 +1204,11 @@ class App(ctk.CTk):
                                                     text=t('label_transcript_file_name'), command=self.button_transcript_file_event)
         self.button_transcript_file_name.place(x=3, y=3)
 
-        self.button_transcript_file = ctk.CTkButton(self.frame_transcript_file, width=45, height=29, text='📂', command=self.button_transcript_file_event)
+        self.button_transcript_file = ctk.CTkButton(self.frame_transcript_file, width=45, height=29, text='…',
+                                                    command=self.button_transcript_file_event, **SECONDARY_BTN)
         self.button_transcript_file.place(x=213, y=2)
 
-        # Options grid
+        # Options grid: everything that is needed for a normal transcription.
         self.frame_options = ctk.CTkFrame(self.scrollable_options, width=250, fg_color='transparent')
         self.frame_options.pack_propagate(False)
         self.frame_options.pack(padx=20, pady=10, anchor='w', fill='x')
@@ -1058,26 +1217,12 @@ class App(ctk.CTk):
         self.frame_options.grid_columnconfigure(0, weight=1, minsize=0)
         self.frame_options.grid_columnconfigure(1, weight=0)
 
-        # Start/stop
-        self.label_start = ctk.CTkLabel(self.frame_options, text=t('label_start'))
-        self.label_start.grid(column=0, row=0, sticky='w', pady=[0,5])
-
-        self.entry_start = TimeEntry(self.frame_options, width=100)
-        self.entry_start.grid(column='1', row='0', sticky='e', pady=[0,5])
-        self.entry_start.insert(0, '00:00:00')
-
-        self.label_stop = ctk.CTkLabel(self.frame_options, text=t('label_stop'))
-        self.label_stop.grid(column=0, row=1, sticky='w', pady=[5,10])
-
-        self.entry_stop = TimeEntry(self.frame_options, width=100)
-        self.entry_stop.grid(column='1', row='1', sticky='e', pady=[5,10])
-
         # language
         self.label_language = ctk.CTkLabel(self.frame_options, text=t('label_language'))
-        self.label_language.grid(column=0, row=2, sticky='w', pady=5)
+        self.label_language.grid(column=0, row=0, sticky='w', pady=5)
 
         self.option_menu_language = ctk.CTkOptionMenu(self.frame_options, width=100, values=list(languages.keys()), dynamic_resizing=False)
-        self.option_menu_language.grid(column=1, row=2, sticky='e', pady=5)
+        self.option_menu_language.grid(column=1, row=0, sticky='e', pady=5)
         last_language = get_config('last_language', 'auto')
         if last_language in languages.keys():
             self.option_menu_language.set(last_language)
@@ -1122,54 +1267,79 @@ class App(ctk.CTk):
                     super()._dropdown_callback(value)
         
         self.label_whisper_model = ctk.CTkLabel(self.frame_options, text=t('label_whisper_model'))
-        self.label_whisper_model.grid(column=0, row=3, sticky='w', pady=5)
+        self.label_whisper_model.grid(column=0, row=1, sticky='w', pady=5)
 
-        self.option_menu_whisper_model = CustomCTkOptionMenu(self, 
-                                                       self.frame_options, 
+        self.option_menu_whisper_model = CustomCTkOptionMenu(self,
+                                                       self.frame_options,
                                                        width=100,
                                                        values=list(self.whisper_models.keys()),
                                                        dynamic_resizing=False)
-        self.option_menu_whisper_model.grid(column=1, row=3, sticky='e', pady=5)
-        last_whisper_model = get_config('last_whisper_model', 'precise')
-        if last_whisper_model in self.whisper_models:
-            self.option_menu_whisper_model.set(last_whisper_model)
-        elif len(self.whisper_models) > 0:
-            self.option_menu_whisper_model.set(next(self.whisper_models.keys()))
-
-        # Mark pauses
-        self.label_pause = ctk.CTkLabel(self.frame_options, text=t('label_pause'))
-        self.label_pause.grid(column=0, row=4, sticky='w', pady=5)
-
-        self.option_menu_pause = ctk.CTkOptionMenu(self.frame_options, width=100, values=['none', '1sec+', '2sec+', '3sec+'])
-        self.option_menu_pause.grid(column=1, row=4, sticky='e', pady=5)
-        self.option_menu_pause.set(get_config('last_pause', '1sec+'))
+        self.option_menu_whisper_model.grid(column=1, row=1, sticky='e', pady=5)
+        self._select_whisper_model()
 
         # Speaker Detection (Diarization)
         self.label_speaker = ctk.CTkLabel(self.frame_options, text=t('label_speaker'))
-        self.label_speaker.grid(column=0, row=5, sticky='w', pady=5)
+        self.label_speaker.grid(column=0, row=2, sticky='w', pady=5)
 
         self.option_menu_speaker = ctk.CTkOptionMenu(self.frame_options, width=100, values=['none', 'auto', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'])
-        self.option_menu_speaker.grid(column=1, row=5, sticky='e', pady=5)
+        self.option_menu_speaker.grid(column=1, row=2, sticky='e', pady=5)
         self.option_menu_speaker.set(get_config('last_speaker', 'auto'))
 
-        # Overlapping Speech (Diarization)
-        self.label_overlapping = ctk.CTkLabel(self.frame_options, text=t('label_overlapping'))
-        self.label_overlapping.grid(column=0, row=6, sticky='w', pady=5)
+        # Everything below is rarely touched and therefore collapsed by default.
+        self.advanced_expanded = str(get_config('last_advanced_expanded', 'False')) == 'True'
 
-        self.check_box_overlapping = ctk.CTkCheckBox(self.frame_options, text = '')
-        self.check_box_overlapping.grid(column=1, row=6, sticky='e', pady=5)
+        self.button_advanced = ctk.CTkButton(self.scrollable_options, anchor='w', height=28,
+                                             fg_color='transparent', hover_color=COLORS['bg'],
+                                             text_color=COLORS['text_muted'], border_width=0,
+                                             command=self.toggle_advanced_options)
+        self.button_advanced.pack(padx=20, pady=[0, 5], anchor='w', fill='x')
+
+        # No pack_propagate(False) here: the frame has to grow with its rows,
+        # otherwise it keeps CTkFrame's default height and clips the last ones.
+        self.frame_advanced = ctk.CTkFrame(self.scrollable_options, width=250, fg_color='transparent')
+        self.frame_advanced.grid_columnconfigure(0, weight=1, minsize=0)
+        self.frame_advanced.grid_columnconfigure(1, weight=0)
+
+        # Start/stop
+        self.label_start = ctk.CTkLabel(self.frame_advanced, text=t('label_start'))
+        self.label_start.grid(column=0, row=0, sticky='w', pady=[0,5])
+
+        self.entry_start = TimeEntry(self.frame_advanced, width=100)
+        self.entry_start.grid(column='1', row='0', sticky='e', pady=[0,5])
+        self.entry_start.insert(0, '00:00:00')
+
+        self.label_stop = ctk.CTkLabel(self.frame_advanced, text=t('label_stop'))
+        self.label_stop.grid(column=0, row=1, sticky='w', pady=5)
+
+        self.entry_stop = TimeEntry(self.frame_advanced, width=100)
+        self.entry_stop.grid(column='1', row='1', sticky='e', pady=5)
+
+        # Mark pauses
+        self.label_pause = ctk.CTkLabel(self.frame_advanced, text=t('label_pause'))
+        self.label_pause.grid(column=0, row=2, sticky='w', pady=5)
+
+        self.option_menu_pause = ctk.CTkOptionMenu(self.frame_advanced, width=100, values=['none', '1sec+', '2sec+', '3sec+'])
+        self.option_menu_pause.grid(column=1, row=2, sticky='e', pady=5)
+        self.option_menu_pause.set(get_config('last_pause', '1sec+'))
+
+        # Overlapping Speech (Diarization)
+        self.label_overlapping = ctk.CTkLabel(self.frame_advanced, text=t('label_overlapping'))
+        self.label_overlapping.grid(column=0, row=3, sticky='w', pady=5)
+
+        self.check_box_overlapping = ctk.CTkCheckBox(self.frame_advanced, text = '')
+        self.check_box_overlapping.grid(column=1, row=3, sticky='e', pady=5)
         overlapping = config.get('last_overlapping', True)
         if overlapping:
             self.check_box_overlapping.select()
         else:
             self.check_box_overlapping.deselect()
-            
-        # Disfluencies
-        self.label_disfluencies = ctk.CTkLabel(self.frame_options, text=t('label_disfluencies'))
-        self.label_disfluencies.grid(column=0, row=7, sticky='w', pady=5)
 
-        self.check_box_disfluencies = ctk.CTkCheckBox(self.frame_options, text = '')
-        self.check_box_disfluencies.grid(column=1, row=7, sticky='e', pady=5)
+        # Disfluencies
+        self.label_disfluencies = ctk.CTkLabel(self.frame_advanced, text=t('label_disfluencies'))
+        self.label_disfluencies.grid(column=0, row=4, sticky='w', pady=5)
+
+        self.check_box_disfluencies = ctk.CTkCheckBox(self.frame_advanced, text = '')
+        self.check_box_disfluencies.grid(column=1, row=4, sticky='e', pady=5)
         check_box_disfluencies = config.get('last_disfluencies', True)
         if check_box_disfluencies:
             self.check_box_disfluencies.select()
@@ -1177,17 +1347,20 @@ class App(ctk.CTk):
             self.check_box_disfluencies.deselect()
 
         # Timestamps in text
-        self.label_timestamps = ctk.CTkLabel(self.frame_options, text=t('label_timestamps'))
-        self.label_timestamps.grid(column=0, row=8, sticky='w', pady=5)
+        self.label_timestamps = ctk.CTkLabel(self.frame_advanced, text=t('label_timestamps'))
+        self.label_timestamps.grid(column=0, row=5, sticky='w', pady=5)
 
-        self.check_box_timestamps = ctk.CTkCheckBox(self.frame_options, text = '')
-        self.check_box_timestamps.grid(column=1, row=8, sticky='e', pady=5)
+        self.check_box_timestamps = ctk.CTkCheckBox(self.frame_advanced, text = '')
+        self.check_box_timestamps.grid(column=1, row=5, sticky='e', pady=5)
         check_box_timestamps = config.get('last_timestamps', False)
         if check_box_timestamps:
             self.check_box_timestamps.select()
         else:
             self.check_box_timestamps.deselect()
-        
+
+        self._apply_advanced_visibility()
+
+
         # Start control: single CTkOptionMenu styled like a button
         # Create a container so we can show/hide as one control
         self.start_button_container = ctk.CTkFrame(self.sidebar_frame, fg_color='transparent')
@@ -1207,6 +1380,9 @@ class App(ctk.CTk):
                 kwargs.setdefault('fg_color', btn_theme.get('fg_color'))
                 kwargs.setdefault('button_color', btn_theme.get('hover_color'))
                 kwargs.setdefault('button_hover_color', btn_theme.get('hover_color'))
+                # CTkOptionMenu defaults to dark text, which is unreadable on the
+                # red primary colour.
+                kwargs.setdefault('text_color', btn_theme.get('text_color'))
 
                 super().__init__(master, values=['Start'], **kwargs)
                 self.noScribe_parent = noScribe_parent
@@ -1269,70 +1445,68 @@ class App(ctk.CTk):
         self.tab_queue = self.tabview.add(t("tab_queue")) 
         self.tabview.set(t("tab_log"))  # set currently visible tab
 
-        self.log_frame = ctk.CTkFrame(self.tab_log, fg_color='transparent', border_width=1, corner_radius=0)
+        self.log_frame = ctk.CTkFrame(self.tab_log)
         self.log_frame.pack(padx=0, pady=0, expand=True, fill='both')
-        self.log_textbox = ctk.CTkTextbox(self.log_frame, wrap='word', state="disabled", font=("",16), text_color="lightgray", bg_color='transparent', fg_color='transparent')
-        self.log_textbox.tag_config('highlight', foreground='darkorange')
-        self.log_textbox.tag_config('error', foreground='yellow')
+        self.log_textbox = ctk.CTkTextbox(self.log_frame, wrap='word', state="disabled", font=("",16), text_color=COLORS['black'], bg_color='transparent', fg_color='transparent')
+        # CTkTextbox rejects a 'font' option on tags, so errors are set apart by a
+        # tinted background rather than bold type.
+        self.log_textbox.tag_config('highlight', foreground=COLORS['red'])
+        self.log_textbox.tag_config('error', foreground=COLORS['error'], background=COLORS['error_bg'])
         self.log_textbox.pack(padx=5, pady=5, expand=True, fill='both')
         self.log_len = 0
-        
+
         self.log_progress_frame = ctk.CTkFrame(self.log_frame, fg_color='transparent')
-        self.log_progress_frame.pack(padx=10, pady=10, fill='x', expand=False, anchor='center') 
+        self.log_progress_frame.pack(padx=10, pady=10, fill='x', expand=False, anchor='center')
         self.log_edit_btn = ctk.CTkButton(
             self.log_progress_frame,
             text=t('editor_button'),
             width=100,
-            fg_color=self.log_textbox._scrollbar_button_color,            
-            command=lambda: self.launch_editor()
+            command=lambda: self.launch_editor(),
+            **SECONDARY_BTN
         )
         self.log_edit_btn.pack(side='right', padx=(0, 0), pady=0)
         self.log_stop_btn = ctk.CTkButton(
             self.log_progress_frame,
             text=t('stop_button'),
-            fg_color='darkred',
-            hover_color='darkred',
             width=100,
             state=ctk.DISABLED,
-            command=lambda: self.on_queue_stop()
+            command=lambda: self.on_queue_stop(),
+            **DANGER_BTN
         )
         self.log_stop_btn.pack(side='right', padx=(0, 10), pady=0)
 
-        self.log_progress_bar = ctk.CTkProgressBar(self.log_progress_frame, mode='determinate', fg_color="gray17")
+        self.log_progress_bar = ctk.CTkProgressBar(self.log_progress_frame, mode='determinate')
         self.log_progress_bar.set(0)
-        
+
         self.hyperlink = HyperlinkManager(self.log_textbox._textbox)
 
         # Queue table
-        self.queue_frame = ctk.CTkFrame(self.tab_queue, fg_color='transparent', border_width=1, corner_radius=0)
-        self.queue_frame.pack(padx=0, pady=0, expand=True, fill='both')        
-        self.queue_frame = ctk.CTkFrame(self.queue_frame, fg_color='transparent')
-        self.queue_frame.pack(padx=5, pady=5, fill='both', expand=True)
-                
+        self.queue_frame = ctk.CTkFrame(self.tab_queue)
+        self.queue_frame.pack(padx=0, pady=0, expand=True, fill='both')
+
         # Scrollable frame for queue entries
         self.queue_scrollable = ctk.CTkScrollableFrame(self.queue_frame, bg_color='transparent', fg_color='transparent')
-        self.queue_scrollable.pack(fill='both', expand=True, padx=0, pady=(0, 0))
+        self.queue_scrollable.pack(fill='both', expand=True, padx=5, pady=(5, 0))
 
         # Controls row at the bottom of the queue tab
         self.queue_controls_frame = ctk.CTkFrame(self.queue_frame, fg_color='transparent')
-        self.queue_controls_frame.pack(fill='x', side='bottom', padx=0, pady=(0, 0))
+        self.queue_controls_frame.pack(fill='x', side='bottom', padx=5, pady=(0, 5))
 
         self.queue_edit_btn = ctk.CTkButton(
             self.queue_controls_frame,
             text=t('editor_button'),
             width=100,
-            fg_color=self.log_textbox._scrollbar_button_color,            
-            command=lambda: self.launch_editor()
+            command=lambda: self.launch_editor(),
+            **SECONDARY_BTN
         )
         self.queue_edit_btn.pack(side='right', padx=(0, 5), pady=5)
 
         self.queue_stop_btn = ctk.CTkButton(
             self.queue_controls_frame,
             text=t('stop_button'),
-            fg_color='darkred',
-            hover_color='darkred',
             width=100,
-            command=lambda: self.on_queue_stop()
+            command=lambda: self.on_queue_stop(),
+            **DANGER_BTN
         )
         self.queue_stop_btn.pack(side='right', padx=(0, 10), pady=5)
 
@@ -1376,13 +1550,56 @@ class App(ctk.CTk):
                 # Update check is best-effort; ignore network/parse errors so a
                 # missing internet connection never blocks startup.
                 pass
-            
+
+        # Deferred so the main window is drawn before the modal appears.
+        self.after(300, self.ensure_whisper_model)
+
     # Events and Methods
+
+    def _select_whisper_model(self):
+        """Preselect the last used model, or the first installed one."""
+        last_whisper_model = get_config('last_whisper_model', 'precise')
+        if last_whisper_model in self.whisper_models:
+            self.option_menu_whisper_model.set(last_whisper_model)
+        elif self.whisper_models:
+            self.option_menu_whisper_model.set(next(iter(self.whisper_models)))
+        else:
+            self.option_menu_whisper_model.set('—')
+
+    def refresh_whisper_models(self):
+        self.whisper_models = transcription.WhisperModelManager(
+            self.user_models_dir).get_installed_models()
+        self.option_menu_whisper_model.configure(values=list(self.whisper_models))
+        self._select_whisper_model()
+
+    def ensure_whisper_model(self):
+        """Offer a one-off download if no speech model is installed yet."""
+        if self.whisper_models:
+            return
+        dialog = ModelDownloadDialog(self, self.user_models_dir)
+        self.wait_window(dialog)
+        self.refresh_whisper_models()
+        if not self.whisper_models:
+            self.logn(t('models_none'), 'error')
+
+    def _apply_advanced_visibility(self):
+        """Show or hide the advanced option block and update the toggle caption."""
+        arrow = '▾' if self.advanced_expanded else '▸'  # ▾ / ▸
+        self.button_advanced.configure(text=f'{arrow}  ' + t('label_advanced'))
+        if self.advanced_expanded:
+            self.frame_advanced.pack(padx=20, pady=[0, 10], anchor='w', fill='x')
+        else:
+            self.frame_advanced.pack_forget()
+
+    def toggle_advanced_options(self):
+        self.advanced_expanded = not self.advanced_expanded
+        self._apply_advanced_visibility()
+        self.update_scrollbar_visibility()
 
     def on_whisper_model_selected(self, value):
         print(self.option_menu_whisper_model.old_value)
         print(value)
-        
+
     def on_resize(self, event):
         self.update_scrollbar_visibility()
 
@@ -1411,27 +1628,27 @@ class App(ctk.CTk):
 
             # Compute display values
             audio_name = os.path.basename(job.audio_file) if job.audio_file else "No file"
-            status_color = "lightgray"
+            status_color = COLORS['status_waiting']
             job_tooltip = ''
             if job.status == JobStatus.WAITING:
-                status_color = "gray"
+                status_color = COLORS['status_waiting']
                 job_tooltip = t('job_tt_waiting')
             elif job.status in [JobStatus.AUDIO_CONVERSION, JobStatus.SPEAKER_IDENTIFICATION, JobStatus.TRANSCRIPTION]:
-                status_color = "orange"
+                status_color = COLORS['status_running']
                 audio_name = '\u23F5 ' + audio_name
                 job_tooltip = t('job_tt_running')
             elif job.status == JobStatus.CANCELING:
-                status_color = "yellow"
+                status_color = COLORS['status_canceled']
                 audio_name = '\u23F5 ' + audio_name
                 job_tooltip = t('job_tt_canceling')
             elif job.status == JobStatus.CANCELED:
-                status_color = "yellow"
+                status_color = COLORS['status_canceled']
                 job_tooltip = t('job_tt_canceled')
             elif job.status == JobStatus.FINISHED:
-                status_color = "lightgreen"
+                status_color = COLORS['status_finished']
                 job_tooltip = t('job_tt_finished')
             elif job.status == JobStatus.ERROR:
-                status_color = "yellow"
+                status_color = COLORS['status_error']
                 msg = job.error_message if job.error_message else ''
                 job_tooltip = t('job_tt_error', error_msg=msg)
 
@@ -1442,8 +1659,6 @@ class App(ctk.CTk):
                 pass
 
             status_text = t(str(job.status.value))
-            
-            btn_color = ctk.ThemeManager.theme['CTkScrollbar']['button_color']
 
             if hasattr(self, 'queue_row_widgets') and job_key in self.queue_row_widgets:
                 # Update existing row
@@ -1468,9 +1683,8 @@ class App(ctk.CTk):
                                 text='⟲',
                                 width=24,
                                 height=20,
-                                fg_color=btn_color,
-                                hover_color='darkred',
-                                command=lambda j=job: self._on_queue_row_repeat(j)
+                                command=lambda j=job: self._on_queue_row_repeat(j),
+                                **ROW_BTN
                             )
                             repeat_btn.pack(side='right', padx=(0, 4), pady=5)
                             row['repeat_btn'] = repeat_btn
@@ -1493,9 +1707,9 @@ class App(ctk.CTk):
                         row['cancel_btn'].configure(command=lambda j=job: self._on_queue_row_action(j))
                         # Color: red if running, gray otherwise
                         if job.status in [JobStatus.AUDIO_CONVERSION, JobStatus.SPEAKER_IDENTIFICATION, JobStatus.TRANSCRIPTION]:
-                            row['cancel_btn'].configure(fg_color='darkred', hover_color='darkred')
+                            row['cancel_btn'].configure(**ROW_BTN_DANGER)
                         else:
-                            row['cancel_btn'].configure(fg_color=btn_color, hover_color='darkred')
+                            row['cancel_btn'].configure(**ROW_BTN)
                         # Make sure it is visible
                         if not row['cancel_btn'].winfo_ismapped():
                             row['cancel_btn'].pack(side='right', padx=(0, 6), pady=2)
@@ -1523,9 +1737,8 @@ class App(ctk.CTk):
                                 text='✔',
                                 width=24,
                                 height=20,
-                                fg_color=btn_color,
-                                hover_color='darkred',
-                                command=lambda j=job: self._on_queue_row_open_partial(j)
+                                command=lambda j=job: self._on_queue_row_open_partial(j),
+                                **ROW_BTN
                             )
                             partial_btn.pack(side='right', padx=(0, 4), pady=5)
                             row['partial_btn'] = partial_btn
@@ -1550,9 +1763,8 @@ class App(ctk.CTk):
                                 text='✔',
                                 width=24,
                                 height=20,
-                                fg_color=btn_color,
-                                hover_color='darkred',
-                                command=lambda j=job: self._on_queue_row_edit(j)
+                                command=lambda j=job: self._on_queue_row_edit(j),
+                                **ROW_BTN
                             )
                             edit_btn.pack(side='right', padx=(0, 4), pady=5)
                             row['edit_btn'] = edit_btn
@@ -1577,8 +1789,7 @@ class App(ctk.CTk):
                         tt.set_text(job_tooltip)
             else:
                 # Create new row with progress bar background
-                fg_color = ctk.ThemeManager.theme['CTkSegmentedButton']['unselected_color'][1]
-                entry_frame = JobEntryFrame(self.queue_scrollable, progress=job.progress, progress_color=None, fg_color=fg_color)
+                entry_frame = JobEntryFrame(self.queue_scrollable, progress=job.progress, progress_color=None, fg_color=COLORS['row_bg'])
                 entry_frame.pack(fill='x', padx=(0, 5), pady=2)
                 
                 # Set the text directly on the JobEntryFrame canvas
@@ -1594,14 +1805,14 @@ class App(ctk.CTk):
 
                 # Add small action buttons to job row
                 # X Button
+                is_running = job.status in [JobStatus.AUDIO_CONVERSION, JobStatus.SPEAKER_IDENTIFICATION, JobStatus.TRANSCRIPTION]
                 cancel_btn = ctk.CTkButton(
                     entry_frame,
                     text='X',
                     width=24,
                     height=20,
-                    fg_color=('darkred' if job.status in [JobStatus.AUDIO_CONVERSION, JobStatus.SPEAKER_IDENTIFICATION, JobStatus.TRANSCRIPTION] else btn_color),
-                    hover_color=('darkred'),
-                    command=lambda j=job: self._on_queue_row_action(j)
+                    command=lambda j=job: self._on_queue_row_action(j),
+                    **(ROW_BTN_DANGER if is_running else ROW_BTN)
                 )
                 cancel_btn.pack(side='right', padx=(0, 6), pady=5)   
                 # Tooltip for X button per status
@@ -1622,9 +1833,8 @@ class App(ctk.CTk):
                         text='⟲',
                         width=24,
                         height=20,
-                        fg_color=btn_color,
-                        hover_color=('darkred'),
-                        command=lambda j=job: self._on_queue_row_repeat(j)
+                        command=lambda j=job: self._on_queue_row_repeat(j),
+                        **ROW_BTN
                     )
                     repeat_btn.pack(side='right', padx=(0, 4), pady=5)
                     repeat_tt = CTkToolTip(repeat_btn, text=t('queue_tt_repeat_job'))
@@ -1638,9 +1848,8 @@ class App(ctk.CTk):
                         text='✔',
                         width=24,
                         height=20,
-                        fg_color=btn_color,
-                        hover_color='darkred',
-                        command=lambda j=job: self._on_queue_row_open_partial(j)
+                        command=lambda j=job: self._on_queue_row_open_partial(j),
+                        **ROW_BTN
                     )
                     partial_btn.pack(side='right', padx=(0, 4), pady=5)
                     partial_tt = CTkToolTip(partial_btn, text=t('queue_tt_open_partial_job'))
@@ -1654,9 +1863,8 @@ class App(ctk.CTk):
                         text='✔',
                         width=24,
                         height=20,
-                        fg_color=btn_color,
-                        hover_color='darkred',
-                        command=lambda j=job: self._on_queue_row_edit(j)
+                        command=lambda j=job: self._on_queue_row_edit(j),
+                        **ROW_BTN
                     )
                     edit_btn.pack(side='right', padx=(0, 4), pady=5)
                     edit_tt = CTkToolTip(edit_btn, text=t('queue_tt_edit_job'))                 
@@ -1744,7 +1952,7 @@ class App(ctk.CTk):
         try:
             if (ask_before_canceling and
                    (self.queue.is_running() or self.queue.has_pending_jobs()) and 
-                   not tk.messagebox.askyesno(title='noScribe', message=t('queue_cancel_all_confirm'))):
+                   not tk.messagebox.askyesno(title=t('app_name'), message=t('queue_cancel_all_confirm'))):
                 return False
             # Mark waiting jobs as canceled immediately
             for job in self.queue.get_waiting_jobs():
@@ -1768,7 +1976,7 @@ class App(ctk.CTk):
         try:
             if job.status == JobStatus.WAITING:
                 # Confirm deletion of waiting job
-                if tk.messagebox.askyesno(title='noScribe', message=t('queue_remove_waiting')):
+                if tk.messagebox.askyesno(title=t('app_name'), message=t('queue_remove_waiting')):
                     try:
                         self.queue.jobs.remove(job)
                     except ValueError:
@@ -1776,7 +1984,7 @@ class App(ctk.CTk):
                     self.update_queue_table()
             elif job.status in [JobStatus.AUDIO_CONVERSION, JobStatus.SPEAKER_IDENTIFICATION, JobStatus.TRANSCRIPTION]:
                 # Confirm cancel of running job
-                if tk.messagebox.askyesno(title='noScribe', message=t('transcription_canceled')):
+                if tk.messagebox.askyesno(title=t('app_name'), message=t('transcription_canceled')):
                     self.logn()
                     self.logn(t('start_canceling'))
                     self.update()
@@ -1809,7 +2017,7 @@ class App(ctk.CTk):
                         self._mp_queue = None
             else:
                 # Finished, canceling or error -> remove from list after confirmation
-                if tk.messagebox.askyesno(title='noScribe', message=t('queue_remove_entry')):
+                if tk.messagebox.askyesno(title=t('app_name'), message=t('queue_remove_entry')):
                     try:
                         self.queue.jobs.remove(job)
                     except ValueError:
@@ -1864,7 +2072,7 @@ class App(ctk.CTk):
                 except Exception:
                     pass
                 try:
-                    tk.messagebox.showerror(title='noScribe', message=t('err_partial_not_found'))
+                    tk.messagebox.showerror(title=t('app_name'), message=t('err_partial_not_found'))
                 except Exception:
                     pass
                 return
@@ -1889,14 +2097,14 @@ class App(ctk.CTk):
             
         if file == '':
             # no file or finished job to open
-            if not tk.messagebox.askyesno(title='noScribe', message=t('err_editor_no_file')):
+            if not tk.messagebox.askyesno(title=t('app_name'), message=t('err_editor_no_file')):
                 return
 
         ext = os.path.splitext(file)[1][1:]
         if file != '' and ext != 'html':
             # wrong format
             file = ''
-            if not tk.messagebox.askyesno(title='noScribe', message=t('err_editor_invalid_format')):
+            if not tk.messagebox.askyesno(title=t('app_name'), message=t('err_editor_invalid_format')):
                 return
 
         program: str = None
@@ -2046,7 +2254,7 @@ class App(ctk.CTk):
     def button_transcript_file_event(self):
         if len(self.audio_files_list) == 0:
             # select audio first
-            tk.messagebox.showerror(title='noScribe', message=t('err_no_audio_file'))
+            tk.messagebox.showerror(title=t('app_name'), message=t('err_no_audio_file'))
             return                    
         if len(self.transcript_files_list) > 0:
             _initialdir = os.path.dirname(self.transcript_files_list[0])
@@ -2068,8 +2276,8 @@ class App(ctk.CTk):
         
         if len(self.audio_files_list) > 1:
             # multiple audio files, select an output directory
-            tk.messagebox.showinfo(title='noScribe', message=t('output_dir_selection'))
-            dir = tk.filedialog.askdirectory(title="noScribe", initialdir=_initialdir)
+            tk.messagebox.showinfo(title=t('app_name'), message=t('output_dir_selection'))
+            dir = tk.filedialog.askdirectory(title=t('app_name'), initialdir=_initialdir)
             if dir:
                 self.create_default_transcript_names(dir)
             else:
@@ -2082,7 +2290,7 @@ class App(ctk.CTk):
             if fn:
                 file_ext = os.path.splitext(fn)[1][1:].lower()
                 if not file_ext in ['html', 'txt', 'vtt']:
-                    tk.messagebox.showerror(title='noScribe', message=t('err_unsupported_output_format', file_type=file_ext))
+                    tk.messagebox.showerror(title=t('app_name'), message=t('err_unsupported_output_format', file_type=file_ext))
                     return                    
                 self.transcript_files_list = [fn]
                 self.button_transcript_file_name.configure(text=os.path.basename(fn))
@@ -2911,11 +3119,11 @@ class App(ctk.CTk):
         except (ValueError, FileNotFoundError) as e:
             # Handle validation errors from collect_transcription_options
             self.logn(str(e), 'error')
-            tk.messagebox.showerror(title='noScribe', message=str(e))
+            tk.messagebox.showerror(title=t('app_name'), message=str(e))
         except Exception as e:
             # Handle unexpected errors
             self.logn(f'Error starting transcription: {str(e)}', 'error')
-            tk.messagebox.showerror(title='noScribe', message=f'Error starting transcription: {str(e)}')
+            tk.messagebox.showerror(title=t('app_name'), message=f'Error starting transcription: {str(e)}')
 
     def _handle_cuda_fallback(self, component: str, error: Exception) -> bool:
         global force_pyannote_cpu
@@ -2928,7 +3136,7 @@ class App(ctk.CTk):
             if force_pyannote_cpu:
                 return False
             prompt = t('pyannote_cuda_error_prompt', error=message)
-            if tk.messagebox.askyesno(title='noScribe', message=prompt):
+            if tk.messagebox.askyesno(title=t('app_name'), message=prompt):
                 force_pyannote_cpu = True
                 config['force_pyannote_cpu'] = 'true'
                 save_config()
@@ -2939,7 +3147,7 @@ class App(ctk.CTk):
             if force_whisper_cpu:
                 return False
             prompt = t('whisper_cuda_error_prompt', error=message)
-            if tk.messagebox.askyesno(title='noScribe', message=prompt):
+            if tk.messagebox.askyesno(title=t('app_name'), message=prompt):
                 force_whisper_cpu = True
                 config['force_whisper_cpu'] = 'true'
                 save_config()
@@ -3242,6 +3450,7 @@ class App(ctk.CTk):
             config['last_overlapping'] = self.check_box_overlapping.get()
             config['last_timestamps'] = self.check_box_timestamps.get()
             config['last_disfluencies'] = self.check_box_disfluencies.get()
+            config['last_advanced_expanded'] = str(self.advanced_expanded)
             config['force_pyannote_cpu'] = str(force_pyannote_cpu)
             config['force_whisper_cpu'] = str(force_whisper_cpu)
 
@@ -3488,15 +3697,15 @@ def noScribeMain():
         i18n.load_path.append(mypath)
 
         try:
-            print("\nnoScribe")
+            print("\n" + t("app_name"))
             print(t("app_header"), "\n")
         except Exception as e:
             logger.error(
                 "Failed to load localization files. "
-                "noScribe cannot start without them and needs to close."
+                "Traudi cannot start without them and needs to close."
             )
             _show_startup_error(
-                "noScribe could not load localization files and needs to close."
+                "Traudi could not load localization files and needs to close."
             )
             raise exception.LocalizationLoadingError from e
 

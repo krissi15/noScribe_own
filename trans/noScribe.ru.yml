@@ -1,6 +1,18 @@
 ru:
-  app_header: Транскрибация аудио с помощью искусственного интеллекта
-  welcome_message: Привет! noScribe готов к работе!
+  models_title: "Настройка речевой модели"
+  models_intro: "Traudi нужна речевая модель — один раз. Она загружается с HuggingFace и сохраняется на диске."
+  models_choose: "Модель:"
+  models_download: "Загрузить"
+  models_later: "Позже"
+  models_progress: "Загрузка %{m} … %{p} %%"
+  models_done: "Модель %{m} готова."
+  models_error: "Не удалось загрузить: %{e}"
+  models_none: "Речевая модель не установлена. Без неё транскрибация невозможна."
+  app_name: Traudi
+  app_authority: "Ministerium der Justiz · Rheinland-Pfalz"
+  app_header: Транскрибация для органов юстиции
+  label_advanced: Дополнительные параметры
+  welcome_message: Привет! Traudi готов к работе!
   welcome_credits: >
     
     Версия %{v}, Kai Dröge %{y}

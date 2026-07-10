@@ -1,6 +1,18 @@
 fr:
-  app_header: "Transcription audio alimentée par l'IA"
-  welcome_message: "Salut, noScribe est prêt !"
+  models_title: "Configurer le modèle vocal"
+  models_intro: "Traudi a besoin d'un modèle vocal une seule fois. Il est téléchargé depuis HuggingFace et conservé sur le disque."
+  models_choose: "Modèle :"
+  models_download: "Télécharger"
+  models_later: "Plus tard"
+  models_progress: "Téléchargement de %{m} … %{p} %%"
+  models_done: "Le modèle %{m} est prêt."
+  models_error: "Échec du téléchargement : %{e}"
+  models_none: "Aucun modèle vocal installé. La transcription est impossible sans modèle."
+  app_name: Traudi
+  app_authority: "Ministerium der Justiz · Rheinland-Pfalz"
+  app_header: "Transcription pour la Justice"
+  label_advanced: Options avancées
+  welcome_message: "Salut, Traudi est prêt !"
   welcome_credits: >
 
     Version %{v}, Kai Dröge %{y}

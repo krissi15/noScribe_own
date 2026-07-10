@@ -5,6 +5,8 @@ import customtkinter as ctk
 from customtkinter import ThemeManager
 import sys
 
+from .theme import COLORS
+
 class CTkToolTip(object):
     """
     Create a tooltip for a given widget. By default, CustomTkinter theme colours are used for the background and text.
@@ -23,7 +25,7 @@ class CTkToolTip(object):
         :param fg_color:  Hex colour code (#RRGGBB), defining the colour of the tooltip. 
         """
         if fg_color is None:
-            self.fg_color = self.get_color_from_name('CTkFrame', 'fg_color')
+            self.fg_color = COLORS['black']
         else:
             self.fg_color = fg_color
 
@@ -122,10 +124,12 @@ class CTkToolTip(object):
             self._tw,
             corner_radius=self.corner_radius,
             border_width=self.border_width,
+            border_color=COLORS['black'],
             fg_color=self.fg_color,
         )
         # Left-justify multi-line tooltip text for better readability
-        self.message_label = ctk.CTkLabel(self.frame, text=self.text, justify='left', anchor='w')
+        self.message_label = ctk.CTkLabel(self.frame, text=self.text, justify='left', anchor='w',
+                                          text_color=COLORS['white'])
         self.message_label.pack(
             fill="both",
             padx=self.padding[0] + self.border_width,
@@ -168,16 +172,3 @@ class CTkToolTip(object):
         self._tw = None
         if tw:
             tw.destroy()
-            
-    @staticmethod
-    def get_color_from_name(widget, name: str):
-        """Gets the colour code associated with the supplied widget property,
-        as defined by the currently active CustomTkinter theme."""
-        mode = ctk.get_appearance_mode()
-        if mode == 'Light':
-            mode = 0
-        else:
-            mode = 1
-        # colour = ThemeManager.theme["color"][name][mode]
-        colour = ThemeManager.theme[widget][name] #[mode]
-        return colour

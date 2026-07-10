@@ -1,6 +1,18 @@
 en:
-  app_header: AI-powered Audio Transcription
-  welcome_message: Hi there, noScribe is ready!
+  models_title: "Set up speech model"
+  models_intro: "Traudi needs a speech model once. It is downloaded from HuggingFace and kept on disk."
+  models_choose: "Model:"
+  models_download: "Download"
+  models_later: "Later"
+  models_progress: "Downloading %{m} … %{p} %%"
+  models_done: "Model %{m} is ready."
+  models_error: "Download failed: %{e}"
+  models_none: "No speech model installed. Transcription is not possible without one."
+  app_name: Traudi
+  app_authority: "Ministerium der Justiz · Rheinland-Pfalz"
+  app_header: Transcription for the Judiciary
+  label_advanced: Advanced options
+  welcome_message: Hi there, Traudi is ready!
   welcome_credits: >
     
     Version %{v}, Kai Dröge %{y}

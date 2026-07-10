@@ -1,55 +1,85 @@
-﻿# noScribe
-### Cutting Edge AI Technology for Automated Audio Transcription
+﻿# Traudi
+### Transkription für die Justiz Rheinland-Pfalz
+
+Traudi ist ein Fork von [noScribe](https://github.com/kaixxx/noScribe) (GPL-3.0, Kai Dröge)
+mit dem Erscheinungsbild der Justiz Rheinland-Pfalz. Die Transkription läuft
+vollständig lokal auf dem eigenen Rechner — es werden keine Audiodaten übertragen.
+
 </br>
 
 ---
 
-## 📦 Installation (macOS & Windows) — Kurzanleitung
+## 📦 Installation
 
-> Schnellanleitung für diesen Fork. noScribe ist eine Python-Anwendung. Du kannst die **fertige Version** nutzen oder **aus dem Quellcode** bauen. Modelle (mehrere GB) werden beim Quellcode-Build separat geladen.
+### Endnutzer (Windows)
 
-### Windows
+1. Den Installer aus den [Releases](https://github.com/krissi15/noScribe_own/releases) laden.
+2. Ausführen. Traudi liegt danach im Startmenü.
 
-**Einfachster Weg – fertige Version:**
-1. Windows-Installer von der offiziellen Seite laden: <https://noscribe.de/de/docs/download-installation/>
-2. Installer ausführen, danach startet noScribe über das Startmenü.
+Beim ersten Start lädt Traudi einmalig ein Sprachmodell (ca. 1,6 GB) herunter und
+legt es im Benutzerprofil ab. Danach arbeitet die Anwendung ohne Internetzugang.
 
-**Aus dem Quellcode (für Anpassungen):**
+### Entwickler
+
+Ein Befehl — es braucht **kein** git-lfs und **kein** ffmpeg (die Audiokonvertierung
+läuft über PyAV):
+
 ```powershell
-# Voraussetzungen: Python 3.12 (mit "Add to PATH"), Git, ffmpeg
-winget install Python.Python.3.12 Git.Git Gyan.FFmpeg
-git clone https://github.com/krissi15/noScribe.git
-cd noScribe
-py -3.12 -m venv venv
+git clone https://github.com/krissi15/noScribe_own.git
+cd noScribe_own
+.\setup.ps1              # CPU;  .\setup.ps1 -Cuda  für CUDA 12.8
 venv\Scripts\activate
-python -m pip install --upgrade pip
-pip install -r environments\requirements_win_cpu.txt   # GPU-Variante: requirements_win_cuda.txt
-git lfs install
-git clone https://huggingface.co/mukowaty/faster-whisper-int8 models\fast
-git clone https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo models\precise
 python -m noScribe
 ```
 
-### macOS
-
-**Apple Silicon (M1–M4) – aus dem Quellcode:**
 ```bash
-brew install python@3.12 git-lfs ffmpeg
-git lfs install
-git clone https://github.com/krissi15/noScribe.git
-cd noScribe
-python3.12 -m venv venv && source venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r environments/requirements_macOS_arm64.txt
-pip install -r noScribeEdit/environments/requirements.txt
-git clone https://huggingface.co/mukowaty/faster-whisper-int8 models/fast
-git clone https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo models/precise
-python3 -m noScribe
+# macOS (Apple Silicon) / Linux
+git clone https://github.com/krissi15/noScribe_own.git
+cd noScribe_own
+./setup.sh
+source venv/bin/activate
+python -m noScribe
 ```
 
-**Intel-Mac (x86_64):** Der Quellcode-Build wird vom Projekt offiziell **nicht** unterstützt (pyannote-Inkompatibilität). Nutze die fertige Version: <https://noscribe.de/de/docs/download-installation/>
+Voraussetzung ist Python 3.12. Unter Windows: `winget install Python.Python.3.12 Git.Git`,
+unter macOS: `brew install python@3.12`.
 
-> 💡 Das mitgelieferte Skript `setup_noscribe.sh` automatisiert die macOS-Einrichtung.
+`setup.ps1` / `setup.sh` legen eine venv an, installieren die Abhängigkeiten und laden
+über [`scripts/fetch_models.py`](scripts/fetch_models.py) die Sprachmodelle. Das Skript
+lässt sich auch einzeln aufrufen:
+
+```bash
+python scripts/fetch_models.py --only precise      # nur das genaue Modell
+python scripts/fetch_models.py --skip-whisper --pyannote   # Sprechererkennung
+```
+
+**Sprechererkennung:** Die pyannote-Gewichte liegen in einem *gated repository*. Für den
+Quellcode-Build müssen die Bedingungen einmalig auf
+[huggingface.co/pyannote/speaker-diarization-community-1](https://huggingface.co/pyannote/speaker-diarization-community-1)
+bestätigt und `HF_TOKEN` gesetzt werden. Endnutzer brauchen das nicht — der Installer
+bringt diese Gewichte mit (32 MB).
+
+**Editor:** Der externe Editor `noScribeEdit` liegt in einem eigenen Repository und ist
+optional:
+
+```bash
+git clone https://github.com/kaixxx/noScribeEditor.git noScribeEdit
+pip install -r noScribeEdit/environments/requirements.txt
+```
+
+**Intel-Mac (x86_64):** Der Quellcode-Build wird nicht unterstützt (pyannote-Inkompatibilität).
+
+### Installer selbst bauen
+
+```powershell
+choco install nsis
+python pyinstaller/win_build.py            # CPU
+python pyinstaller/win_build.py --cuda     # CUDA
+```
+
+Der Installer entsteht unter `pyinstaller/win_installer/`. Er enthält **keine**
+Whisper-Gewichte — die lädt Traudi beim ersten Start. Der Workflow
+[`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml) macht dasselbe in CI.
 
 ---
 
@@ -172,37 +202,22 @@ repository. Please use the installation above (executable installation) if
 you want to install a specific version.
 
 ```bash
-git clone https://github.com/kaixxx/noScribe.git
+git clone https://github.com/krissi15/noScribe_own.git
+cd noScribe_own
 
-# After that, everything happens in the `noScribe` directory.
-cd noScribe
+# Creates the venv, installs the dependencies and downloads the models.
+./setup.sh
 
-# Install noScribeEdit
-rm -rf noScribeEdit/
-git clone https://github.com/kaixxx/noScribeEditor.git noScribeEdit
-
-# Create a python virtual environment.
-python3 -m venv venv
-
-# After the following command, python from the virtual environment is used. Also
-# package installations land here. Remember to run this command every time, you
-# want to start noScribe.
+# Run Traudi. Remember to activate the venv in every new shell.
 source venv/bin/activate
-
-# Install necessary dependencies.
-pip install -r environments/requirements_linux.txt
-pip install -r noScribeEdit/environments/requirements.txt
-
-# Download model files. Here, the precise as well as the fast models are
-# downloaded. If you use only one of them, it is enough to download only the
-# respective models.
-rm -rf models/fast
-rm -rf models/precise
-git clone https://huggingface.co/mukowaty/faster-whisper-int8 models/fast
-git clone https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo models/precise
-
-# Run noScribe.
 python3 -m noScribe
+```
+
+The editor is optional and lives in a separate repository:
+
+```bash
+git clone https://github.com/kaixxx/noScribeEditor.git noScribeEdit
+venv/bin/python -m pip install -r noScribeEdit/environments/requirements.txt
 ```
 
 </details>

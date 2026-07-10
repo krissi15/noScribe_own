@@ -1,6 +1,18 @@
 de:
-  app_header: KI-basierte Audio-Transkription
-  welcome_message: Hallo, noScribe ist bereit!
+  models_title: "Sprachmodell einrichten"
+  models_intro: "Traudi braucht einmalig ein Sprachmodell. Es wird von HuggingFace geladen und dauerhaft gespeichert."
+  models_choose: "Modell:"
+  models_download: "Herunterladen"
+  models_later: "Später"
+  models_progress: "Lade %{m} … %{p} %%"
+  models_done: "Modell %{m} ist eingerichtet."
+  models_error: "Download fehlgeschlagen: %{e}"
+  models_none: "Kein Sprachmodell installiert. Ohne Modell kann nicht transkribiert werden."
+  app_name: Traudi
+  app_authority: "Ministerium der Justiz · Rheinland-Pfalz"
+  app_header: Transkription für die Justiz
+  label_advanced: Erweiterte Optionen
+  welcome_message: Hallo, Traudi ist bereit!
   welcome_credits: >
     
     Version %{v}, Kai Dröge %{y}

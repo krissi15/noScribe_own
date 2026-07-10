@@ -1,160 +1,147 @@
+"""Baut die Windows-Fassung von Traudi: PyInstaller, dann der NSIS-Installer.
+
+    python pyinstaller/win_build.py              # CPU-Variante
+    python pyinstaller/win_build.py --cuda       # CUDA-Variante
+    python pyinstaller/win_build.py --skip-nsis  # nur den dist-Ordner bauen
+
+Läuft mit dem Python, das das Skript startet -- also einfach die aktivierte
+venv. NSIS wird über PATH gesucht (`choco install nsis`) oder über --nsis.
+"""
+
+import argparse
 import os
+import re
+import shutil
+import subprocess
 import sys
-from subprocess import Popen
 from datetime import datetime
+from pathlib import Path
 
-noScribe_version = '0.7'
-clean_build = True
-run_pyinstaller_non_cuda = False
-run_pyinstaller_cuda = True
-run_nsis_non_cuda = False
-run_nsis_cuda = True
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 
-conda_env_noncuda = 'noScribe_0_6_non_cuda'
-conda_env_cuda = 'noScribe_0_6_cuda'
-pyinstaller_path = 'C:\\users\\kai\\anaconda3\\envs\\noScribe_0_6_non_cuda\\lib\\site-packages\\pyinstaller'
-nsis_path = 'C:\\Program Files (x86)\\NSIS\\makensis.exe'
 
-script_dir = os.path.abspath(os.path.dirname(__file__))
-final_report = '\n######################################\nResults:\n#######################################\n'
+def app_version() -> str:
+    """Einzige Quelle der Version ist `app_version` in noScribe/main.py."""
+    source = (PROJECT_ROOT / 'noScribe' / 'main.py').read_text(encoding='utf-8')
+    match = re.search(r"^app_version\s*=\s*'([^']+)'", source, re.MULTILINE)
+    if not match:
+        raise SystemExit('Konnte app_version nicht aus noScribe/main.py lesen.')
+    return match.group(1)
 
-##### PyInstaller #####
 
-def get_pyinstaller_out_path(cuda=False):
-    if cuda:
-        return os.path.join(script_dir, 'dist', 'noScribe_cuda')
-    else:
-        return os.path.join(script_dir, 'dist', 'noScribe_noncuda')
+def find_nsis(explicit: str | None) -> Path:
+    if explicit:
+        return Path(explicit)
+    found = shutil.which('makensis')
+    if found:
+        return Path(found)
+    default = Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)')) / 'NSIS' / 'makensis.exe'
+    if default.is_file():
+        return default
+    raise SystemExit('makensis wurde nicht gefunden. Installiere NSIS oder nutze --nsis.')
 
-def run_pyinstaller(cuda=False):
-    global final_report 
-    print('##############################################################')
-    print('PyInstaller cuda' if cuda else 'PyInstaller non cuda')
 
-    pyinstaller_out_path = get_pyinstaller_out_path(cuda)
-    if cuda:
-        pyinstaller_cmd = f'conda activate {conda_env_cuda} &&'
-    else:
-        pyinstaller_cmd = f'conda activate {conda_env_noncuda} &&'
-        
-    pyinstaller_cmd += f'python  "{pyinstaller_path}" --noconfirm "{os.path.join(script_dir, 'noScribe_win.spec')}" --distpath {pyinstaller_out_path}'
-    if clean_build:
-        pyinstaller_cmd += ' --clean'
-    
-    print(pyinstaller_cmd)
-    proc = Popen(pyinstaller_cmd, shell=True, cwd=script_dir)
-    proc.communicate()
-    if proc.returncode != 0:
-        final_report += 'PyInstaller failed.\n'
-        final_report += 'Cmd: ' + pyinstaller_cmd
-        print(final_report)
-        quit(proc.returncode)
-    else:
-        final_report += 'PyInstaller build with cuda succeeded\n' if cuda else 'PyInstaller build without cuda succeeded\n'
+def run_pyinstaller(dist_dir: Path, clean: bool) -> None:
+    cmd = [sys.executable, '-m', 'PyInstaller', '--noconfirm',
+           str(SCRIPT_DIR / 'noScribe_win.spec'), '--distpath', str(dist_dir)]
+    if clean:
+        cmd.append('--clean')
+    print('>', ' '.join(cmd))
+    subprocess.run(cmd, cwd=SCRIPT_DIR, check=True)
 
-##### NSIS Installer #####
 
-def run_nsis(cuda=False):
-    def format_version(version_string):
-        """
-        Formats a version string to ensure it has four segments
-        by appending ".0" for any missing segments.
-        """
-        target_length = 4
-        segments = version_string.split('.')
-        # Calculate how many additional "0" segments need to be appended
-        missing_segments = target_length - len(segments)
-        
-        if missing_segments > 0:
-            # Append "0" for each missing segment
-            segments.extend(['0'] * missing_segments)
+def format_version(version: str) -> str:
+    """NSIS' VIProductVersion braucht genau vier Segmente."""
+    segments = version.split('.')
+    segments += ['0'] * (4 - len(segments))
+    return '.'.join(segments[:4])
 
-        return '.'.join(segments)
-   
-    global final_report
-    pyinstaller_out_path = get_pyinstaller_out_path(cuda)
-    installer_name = 'noScribe_setup_' + noScribe_version.replace('.', '_')
-    if cuda:
-        installer_name += '_cuda'
-    installer_name += '.exe'
-    installer_name = os.path.join(script_dir, 'win_installer', installer_name)
-        
-    print('##############################################################')
-    print('NISIS cuda' if cuda else 'NSIS non cuda')
-    
-    # prepare template
-    with open(os.path.join(script_dir, 'nsis_template.txt'), 'r', encoding="utf-8") as nsis_templ_file:
-        nsis_templ = nsis_templ_file.read()
-    nsis_templ = nsis_templ.replace('#*version*#', format_version(noScribe_version))
-    nsis_templ = nsis_templ.replace('#*year*#', str(datetime.now().year))
 
-    # Recursively generate NSIS commands for installation and uninstallation
-    # of directories and files from the specified directory.
-    
-    base_directory = os.path.join(pyinstaller_out_path, 'noScribe')
+def build_file_lists(base: Path) -> tuple:
+    install_entries = []
+    uninstall_entries = []
+    directories = []
 
-    install_entries = '' # "Section \"Install\"\n"
-    uninstall_entries = '' # "Section \"Uninstall\"\n"
-
-    directories_created = []  # Track directories for uninstall
-
-    # Process directories
-    for root, dirs, files in sorted(os.walk(base_directory, topdown=True), key=lambda x: x[0]):
-        relative_path = os.path.relpath(root, base_directory)
-        if relative_path == ".":
-            relative_path = ""  # NSIS SetOutPath doesn't need a dot for the base path
-            install_entries += 'SetOutPath "$INSTDIR"\n'
+    for root, _dirs, files in sorted(os.walk(base, topdown=True), key=lambda x: x[0]):
+        rel = os.path.relpath(root, base)
+        if rel == '.':
+            rel = ''
+            install_entries.append('SetOutPath "$INSTDIR"')
         else:
-            # relative_path += "\\"  # Append backslash for NSIS SetOutPath command
-            install_entries += 'SetOutPath "$INSTDIR\\{}"\n'.format(relative_path.replace(os.sep, "\\"))
+            rel = rel.replace(os.sep, '\\')
+            install_entries.append(f'SetOutPath "$INSTDIR\\{rel}"')
+            directories.append(rel)
 
-        if relative_path:
-            directories_created.append(relative_path.replace(os.sep, "\\"))
-        
         for filename in files:
-            # Generate File command for each file
-            filepath = os.path.join(root, filename).replace(os.sep, "\\")
-            install_entries += 'File "{}"\n'.format(filepath)
+            install_entries.append('File "{}"'.format(str(Path(root) / filename)))
+            target = f'{rel}\\{filename}' if rel else filename
+            uninstall_entries.append(f'Delete "$INSTDIR\\{target}"')
 
-            # Generate Delete command for each file for uninstallation
-            uninstall_entries += 'Delete "$INSTDIR\\{}"\n'.format(os.path.join(relative_path, filename).replace(os.sep, "\\"))
+    for directory in reversed(directories):
+        uninstall_entries.append(f'RMDir "$INSTDIR\\{directory}"')
 
-    # Generate RMDir commands for uninstallation, in reverse order
-    for directory in reversed(directories_created):
-        uninstall_entries += 'RMDir "$INSTDIR\\{}"\n'.format(directory)
+    return '\n'.join(install_entries), '\n'.join(uninstall_entries)
 
-    # Prepare NSIS script
-    nsis_templ = nsis_templ.replace('#*installer_name*#', installer_name)
-    nsis_templ = nsis_templ.replace('#*install_entries*#', install_entries, 1)
-    nsis_templ = nsis_templ.replace('#*uninstall_entries*#', uninstall_entries, 1)
 
-    # print(nsis_templ)
-    print('Writing nsis_tmp.nsi')
-    with open(os.path.join(script_dir, 'nsis_tmp.nsi'), 'w', encoding="utf-8") as nsis_out:
-        nsis_out.write(nsis_templ)
+def run_nsis(dist_dir: Path, version: str, cuda: bool, nsis: Path) -> Path:
+    out_dir = SCRIPT_DIR / 'win_installer'
+    out_dir.mkdir(exist_ok=True)
+    installer_name = 'Traudi_setup_' + version.replace('.', '_') + ('_cuda' if cuda else '') + '.exe'
+    installer_path = out_dir / installer_name
 
-    nsis_cmd = '"' + nsis_path + '" /V4 "' + os.path.join(script_dir, 'nsis_tmp.nsi') + '"'
+    template = (SCRIPT_DIR / 'nsis_template.txt').read_text(encoding='utf-8')
+    base = dist_dir / 'Traudi'
+    install_entries, uninstall_entries = build_file_lists(base)
 
-    proc = Popen(nsis_cmd, shell=True, cwd=os.path.join(script_dir, 'win_installer'))
-    proc.communicate()    
-    if proc.returncode != 0:
-        final_report += 'NSIS commpiler failed.\n'
-        final_report += 'Cmd: ' + nsis_cmd
-        print(final_report)
-        quit(proc.returncode)
-    else:
-        final_report += 'NSIS compiler with cuda succeeded\n' if cuda else 'NSIS compiler without cuda succeeded\n'
+    # The editor comes from a separate repository and may be absent.
+    has_editor = (base / '_internal' / 'noScribeEdit' / 'noScribeEdit.exe').is_file()
+    editor_shortcut = (
+        'CreateShortCut "$SMPROGRAMS\\$SM_Folder\\Traudi Editor.lnk" '
+        '"$INSTDIR\\_internal\\noScribeEdit\\noScribeEdit.exe"' if has_editor else '')
+    editor_delete = (
+        'Delete "$SMPROGRAMS\\$SM_Folder\\Traudi Editor.lnk"' if has_editor else '')
 
-########################## Main ################################
+    script = (template
+              .replace('#*version*#', format_version(version))
+              .replace('#*year*#', str(datetime.now().year))
+              .replace('#*license_txt*#', str(PROJECT_ROOT / 'LICENSE.txt'))
+              .replace('#*installer_name*#', str(installer_path))
+              .replace('#*editor_shortcut*#', editor_shortcut)
+              .replace('#*editor_shortcut_delete*#', editor_delete)
+              .replace('#*install_entries*#', install_entries, 1)
+              .replace('#*uninstall_entries*#', uninstall_entries, 1))
 
-if run_pyinstaller_non_cuda:
-    run_pyinstaller(cuda=False)
-if run_pyinstaller_cuda:
-    run_pyinstaller(cuda=True)
+    script_path = SCRIPT_DIR / 'nsis_tmp.nsi'
+    script_path.write_text(script, encoding='utf-8')
 
-if run_nsis_non_cuda:
-    run_nsis(cuda=False)
-if run_nsis_cuda:
-    run_nsis(cuda=True)
+    print('>', nsis, '/V4', script_path)
+    subprocess.run([str(nsis), '/V4', str(script_path)], cwd=out_dir, check=True)
+    return installer_path
 
-print(final_report)
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--cuda', action='store_true', help='als CUDA-Variante kennzeichnen')
+    parser.add_argument('--skip-nsis', action='store_true', help='keinen Installer bauen')
+    parser.add_argument('--no-clean', action='store_true', help='PyInstaller-Cache behalten')
+    parser.add_argument('--nsis', help='Pfad zu makensis.exe')
+    args = parser.parse_args()
+
+    version = app_version()
+    dist_dir = SCRIPT_DIR / 'dist' / ('Traudi_cuda' if args.cuda else 'Traudi_cpu')
+
+    run_pyinstaller(dist_dir, clean=not args.no_clean)
+    print(f'PyInstaller fertig: {dist_dir}')
+
+    if args.skip_nsis:
+        return 0
+
+    installer = run_nsis(dist_dir, version, args.cuda, find_nsis(args.nsis))
+    print(f'Installer fertig: {installer}')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

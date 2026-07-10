@@ -1,11 +1,13 @@
 from tkinter import Text, CURRENT
+
+from .theme import COLORS
 # Source: https://web.archive.org/web/20200806215420/http://effbot.org/zone/tkinter-text-hyperlink.htm
-# and https://stackoverflow.com/questions/49353034/python-tkinter-have-displayed-text-as-hyperlink 
+# and https://stackoverflow.com/questions/49353034/python-tkinter-have-displayed-text-as-hyperlink
 
 class HyperlinkManager:
     def __init__(self, text):
         self.text = text
-        self.text.tag_config("hyper", foreground="#3B8ED0", underline=1)
+        self.text.tag_config("hyper", foreground=COLORS['red_hover'], underline=1)
         self.text.tag_bind("hyper", "<Enter>", self._enter)
         self.text.tag_bind("hyper", "<Leave>", self._leave)
         self.text.tag_bind("hyper", "<Button-1>", self._click)

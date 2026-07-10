@@ -8,6 +8,7 @@ appdirs
 customtkinter
 CTkToolTip
 faster-whisper
+huggingface_hub # Modell-Download, siehe scripts/fetch_models.py
 Pillow
 pyannote.audio>=4
 pyinstaller
