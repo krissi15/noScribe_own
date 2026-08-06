@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "traudi"
-version = "0.7.2"
+# Die Version steht ausschließlich in noScribe/_version.py.
+dynamic = ["version"]
 description = "Traudi – Transkription für die Justiz (Fork von noScribe)"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -38,5 +39,13 @@ build = ["pyinstaller==6.14.1"]
 # nicht mitnehmen. Für Endnutzer gibt es den Installer.
 packages = ["noScribe", "noScribe.audio", "noScribe.theme"]
 
+[tool.setuptools.dynamic]
+version = { attr = "noScribe._version.__version__" }
+
 [tool.setuptools.package-data]
 "noScribe.theme" = ["*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Die Tests kommen ohne GUI, ohne Modelle und ohne GPU aus.
+addopts = "-q"

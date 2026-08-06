@@ -1,5 +1,5 @@
 de:
-  err_pyannote_weights_missing: "Die Gewichte für die Sprechererkennung fehlen. Lade sie mit: python scripts/fetch_models.py --skip-whisper --pyannote (dafür wird ein HuggingFace-Token gebraucht, siehe README)."
+  err_pyannote_weights_missing: "Die Gewichte für die Sprechererkennung fehlen. Die Transkription selbst funktioniert weiterhin — nur die Sprechererkennung nicht. Zum Nachrüsten die Dateien segmentation/pytorch_model.bin und embedding/pytorch_model.bin nach %{dir} legen (Bezugsquelle siehe README)."
   models_title: "Sprachmodell einrichten"
   models_intro: "Traudi braucht einmalig ein Sprachmodell. Es wird von HuggingFace geladen und dauerhaft gespeichert."
   models_choose: "Modell:"

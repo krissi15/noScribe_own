@@ -31,6 +31,14 @@ fi
 echo '==> Aktualisiere pip'
 venv/bin/python -m pip install --upgrade pip --quiet
 
+if [ "$requirements" = environments/requirements_linux.txt ]; then
+    # Getrennter erster Aufruf, damit torch aus dem CPU-Index kommt und nicht
+    # als CUDA-Rad von PyPI -- siehe Kommentar in der Requirements-Datei.
+    echo '==> Installiere torch (CPU-Index)'
+    venv/bin/python -m pip install --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.8 torchaudio==2.8
+fi
+
 echo "==> Installiere Abhängigkeiten aus $requirements"
 venv/bin/python -m pip install -r "$requirements"
 

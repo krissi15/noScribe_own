@@ -1,5 +1,5 @@
 zh-CN: &defaults
-  err_pyannote_weights_missing: "缺少说话人识别的模型权重。请运行: python scripts/fetch_models.py --skip-whisper --pyannote (需要 HuggingFace 令牌，参见 README)。"
+  err_pyannote_weights_missing: "缺少说话人识别的权重文件。转录本身仍可正常工作，只有说话人识别不可用。如需补充，请将 segmentation/pytorch_model.bin 和 embedding/pytorch_model.bin 放入 %{dir}（获取方式见 README）。"
   models_title: "设置语音模型"
   models_intro: "Traudi 需要一次性下载语音模型。模型从 HuggingFace 下载并保存在本地。"
   models_choose: "模型："

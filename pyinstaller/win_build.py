@@ -22,11 +22,15 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 
 
 def app_version() -> str:
-    """Einzige Quelle der Version ist `app_version` in noScribe/main.py."""
-    source = (PROJECT_ROOT / 'noScribe' / 'main.py').read_text(encoding='utf-8')
-    match = re.search(r"^app_version\s*=\s*'([^']+)'", source, re.MULTILINE)
+    """Einzige Quelle der Version ist `__version__` in noScribe/_version.py.
+
+    Bewusst per Regex und nicht per Import: ein `import noScribe` würde über
+    das Paket-`__init__` main.py und damit torch/faster-whisper mitladen.
+    """
+    source = (PROJECT_ROOT / 'noScribe' / '_version.py').read_text(encoding='utf-8')
+    match = re.search(r'^__version__\s*=\s*"([^"]+)"', source, re.MULTILINE)
     if not match:
-        raise SystemExit('Konnte app_version nicht aus noScribe/main.py lesen.')
+        raise SystemExit('Konnte __version__ nicht aus noScribe/_version.py lesen.')
     return match.group(1)
 
 

@@ -73,8 +73,16 @@ def pyannote_proc_entrypoint(args: dict, q):
             else:
                 raise Exception('Platform not supported yet.')
 
-        with impres.as_file(impres.files("pyannote")) as mypath:
-            pipeline = Pipeline.from_pretrained(mypath)
+        # Der Elternprozess entscheidet, welche Ablage benutzt wird: das
+        # Nutzerverzeichnis (dort darf ohne Administratorrechte nachgelegt
+        # werden) oder das Programmverzeichnis. Fehlt die Angabe, gilt wie
+        # bisher das gebündelte Verzeichnis.
+        pyannote_dir = args.get("pyannote_dir") or ""
+        if pyannote_dir:
+            pipeline = Pipeline.from_pretrained(pyannote_dir)
+        else:
+            with impres.as_file(impres.files("pyannote")) as mypath:
+                pipeline = Pipeline.from_pretrained(mypath)
         waveform, sample_rate = torchaudio.load(audio_file)        
         pipeline.to(torch.device(device))
 

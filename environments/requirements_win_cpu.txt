@@ -1,5 +1,15 @@
-# Install with `pip install -r requirements_win_cpu.txt`
-# torchaudio # install as dependency
+# torch und torchaudio VORHER aus dem CPU-Index installieren:
+#
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8 torchaudio==2.8
+#   pip install -r requirements_win_cpu.txt
+#
+# Warum zwei Aufrufe: pyannote.audio zieht torch transitiv nach, und das
+# Standard-Rad auf PyPI bringt die komplette CUDA-Laufzeit mit (mehrere GB).
+# Beide Indizes in EINER Datei anzugeben genügt nicht -- pip sucht sich dann
+# aus, welcher Index die Version liefert, und das kann die CUDA-Fassung sein.
+# Nach dem ersten Aufruf ist die Anforderung erfüllt und pip rührt sie nicht an.
+torch==2.8 # pyannote 4.0 läuft nicht mit torch 2.9
+torchaudio==2.8
 av
 AdvancedHTMLParser
 appdirs

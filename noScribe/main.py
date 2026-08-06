@@ -51,6 +51,7 @@ from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
 
 from . import audio, exception, model_download, transcription, utils
+from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
 from .theme import COLORS, theme_path
 from .tkHyperlinkManager import HyperlinkManager
@@ -83,8 +84,8 @@ logging.basicConfig()
 logging.getLogger("faster_whisper").setLevel(logging.DEBUG)
 logger = logging.getLogger()
 
-app_version = '0.7.2'
-app_year = '2026'
+app_version = __version__
+app_year = __year__
 
 ctk.set_appearance_mode('light')
 ctk.set_default_color_theme(theme_path())
@@ -215,6 +216,32 @@ def get_config(key: str, default) -> str:
 
 force_pyannote_cpu = get_config('force_pyannote_cpu', '').lower() == 'true'
 force_whisper_cpu = get_config('force_whisper_cpu', '').lower() == 'true'
+
+# Nutzerseitiger Ablageort für die Diarisierungs-Gewichte.
+#
+# Im Bündel liegen sie unter Program Files, wo ohne Administratorrechte nicht
+# geschrieben werden darf. Bringt der Installer sie nicht mit (weil beim Bau
+# kein HuggingFace-Token vorlag), können sie hier abgelegt werden, ohne die
+# Anwendung neu zu installieren.
+user_pyannote_dir = Path(config_dir) / 'pyannote'
+
+
+def resolve_pyannote_dir() -> Optional[Path]:
+    """Verzeichnis mit vollständigen Diarisierungs-Gewichten, sonst None.
+
+    Das Nutzerverzeichnis hat Vorrang: wer dort nachgelegt hat, will die
+    nachgelegte Fassung benutzen.
+    """
+    if model_download.pyannote_weights_present(user_pyannote_dir):
+        return user_pyannote_dir
+    with impres.as_file(impres.files("pyannote")) as bundled:
+        if model_download.pyannote_weights_present(bundled):
+            # as_file kann bei gepackten Ressourcen ein temporäres Verzeichnis
+            # liefern, das beim Verlassen verschwindet. Bei PyInstaller und im
+            # Entwicklungsbaum liegt der Ordner real auf der Platte, deshalb
+            # bleibt der Pfad gültig.
+            return Path(bundled)
+    return None
 
 _CUDA_ERROR_KEYWORDS = (
     'cuda',
@@ -2707,9 +2734,10 @@ class App(ctk.CTk):
 
                         # Check before spending a minute on audio the pipeline
                         # cannot load: the gated weights are fetched separately.
-                        with impres.as_file(impres.files("pyannote")) as pyannote_dir:
-                            if not model_download.pyannote_weights_present(pyannote_dir):
-                                raise FileNotFoundError(t('err_pyannote_weights_missing'))
+                        pyannote_dir = resolve_pyannote_dir()
+                        if pyannote_dir is None:
+                            raise FileNotFoundError(
+                                t('err_pyannote_weights_missing', dir=str(user_pyannote_dir)))
 
                         self.logn(t('loading_pyannote'))
                         # self.set_progress(1, 100, job.speaker_detection)
@@ -3313,6 +3341,9 @@ class App(ctk.CTk):
             "device": 'cpu' if force_pyannote_cpu else '',
             "audio_path": tmp_audio_file,
             "num_speakers": (int(job.speaker_detection) if str(job.speaker_detection).isdigit() else None),
+            # Der Elternprozess hat bereits entschieden, welche Ablage die
+            # vollständigen Gewichte hat (Nutzerverzeichnis oder Bündel).
+            "pyannote_dir": str(resolve_pyannote_dir() or ''),
         }
         proc = ctx.Process(target=pyannote_proc_entrypoint, args=(args, q))
         proc.start()

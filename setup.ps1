@@ -49,6 +49,11 @@ if ($Cuda) {
     Write-Host '==> Installiere Abhängigkeiten (CUDA 12.8)'
     Invoke-Native $venvPython -m pip install -r environments\requirements_win_cuda.txt
 } else {
+    # Getrennter erster Aufruf, damit torch aus dem CPU-Index kommt und nicht
+    # als CUDA-Rad von PyPI -- siehe Kommentar in der Requirements-Datei.
+    Write-Host '==> Installiere torch (CPU-Index)'
+    Invoke-Native $venvPython -m pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8 torchaudio==2.8
+
     Write-Host '==> Installiere Abhängigkeiten (CPU)'
     Invoke-Native $venvPython -m pip install -r environments\requirements_win_cpu.txt
 }

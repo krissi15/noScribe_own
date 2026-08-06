@@ -1,5 +1,5 @@
 fr:
-  err_pyannote_weights_missing: "Les poids pour la reconnaissance des locuteurs sont absents. Téléchargez-les avec : python scripts/fetch_models.py --skip-whisper --pyannote (un jeton HuggingFace est nécessaire, voir le README)."
+  err_pyannote_weights_missing: "Les poids pour la reconnaissance des locuteurs sont absents. La transcription fonctionne toujours ; seule la reconnaissance des locuteurs ne fonctionne pas. Pour les ajouter, placez segmentation/pytorch_model.bin et embedding/pytorch_model.bin dans %{dir} (voir le README)."
   models_title: "Configurer le modèle vocal"
   models_intro: "Traudi a besoin d'un modèle vocal une seule fois. Il est téléchargé depuis HuggingFace et conservé sur le disque."
   models_choose: "Modèle :"

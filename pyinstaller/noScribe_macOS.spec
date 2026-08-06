@@ -1,6 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import re
+
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_all
+
+# Version aus der einzigen Quelle lesen, statt sie hier ein zweites Mal zu
+# pflegen -- genau das war hier auf 0.7.1 stehengeblieben.
+_version_src = open(os.path.join('..', 'noScribe', '_version.py'), encoding='utf-8').read()
+APP_VERSION = re.search(r'^__version__\s*=\s*"([^"]+)"', _version_src, re.M).group(1)
+
+# macOS-App-Bündel erwarten ein .icns. Fehlt es, wird lieber gar kein Icon
+# gesetzt als eine .ico übergeben, mit der PyInstaller nichts anfangen kann.
+_icns = os.path.join('..', 'img', 'traudi_logo.icns')
+BUNDLE_ICON = _icns if os.path.isfile(_icns) else None
 
 datas = [('../img/traudi_logo.ico', 'img'), ('../img/traudi_logo.png', 'img'), ('../LICENSE.txt', '.'), ('../models/precise', 'models/precise/'), ('../models/fast', 'models/fast/'), ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'), ('../prompts/prompt.yml', 'prompts'), ('../prompts/prompt_nd.yml', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
 binaries = []
@@ -33,7 +46,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='noScribe',
+    name='Traudi',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -53,12 +66,15 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='noScribe',
+    name='Traudi',
 )
 app = BUNDLE(
     coll,
-    name='noScribe.app',
-    icon='../img/traudi_logo.ico',
-    bundle_identifier='org.noScribe.noScribe',
-    info_plist={"CFBundleShortVersionString":"0.7.1"},
+    name='Traudi.app',
+    icon=BUNDLE_ICON,
+    bundle_identifier='de.rlp.justiz.traudi',
+    info_plist={
+        "CFBundleShortVersionString": APP_VERSION,
+        "CFBundleVersion": APP_VERSION,
+    },
 )

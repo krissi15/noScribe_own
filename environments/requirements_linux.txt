@@ -1,5 +1,11 @@
-# Install with `pip install -r requirements_linux.txt`
-# torch==2.8 # pyannote 4 is currently not compatible with torch 2.9; torch version is set by torchaudio
+# torch und torchaudio VORHER aus dem CPU-Index installieren:
+#
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8 torchaudio==2.8
+#   pip install -r requirements_linux.txt
+#
+# Begründung wie bei requirements_win_cpu.txt: pyannote zieht torch transitiv
+# nach, und das PyPI-Rad bringt die CUDA-Laufzeit mit.
+torch==2.8 # pyannote 4 ist nicht mit torch 2.9 verträglich
 torchaudio==2.8
 torchcodec==0.7.0
 av

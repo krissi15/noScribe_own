@@ -1,5 +1,5 @@
 ru:
-  err_pyannote_weights_missing: "Отсутствуют веса для распознавания говорящих. Загрузите их: python scripts/fetch_models.py --skip-whisper --pyannote (нужен токен HuggingFace, см. README)."
+  err_pyannote_weights_missing: "Отсутствуют веса для распознавания говорящих. Сама расшифровка продолжает работать — не работает только распознавание говорящих. Чтобы добавить их, поместите segmentation/pytorch_model.bin и embedding/pytorch_model.bin в %{dir} (источник указан в README)."
   models_title: "Настройка речевой модели"
   models_intro: "Traudi нужна речевая модель — один раз. Она загружается с HuggingFace и сохраняется на диске."
   models_choose: "Модель:"

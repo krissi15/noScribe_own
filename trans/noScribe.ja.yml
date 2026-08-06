@@ -1,5 +1,5 @@
 ja:
-  err_pyannote_weights_missing: "話者認識の重みがありません。次のコマンドで取得してください: python scripts/fetch_models.py --skip-whisper --pyannote (HuggingFace のトークンが必要です。README を参照)。"
+  err_pyannote_weights_missing: "話者認識の重みファイルがありません。文字起こし自体は引き続き動作しますが、話者認識は利用できません。追加するには segmentation/pytorch_model.bin と embedding/pytorch_model.bin を %{dir} に配置してください（入手先は README を参照）。"
   models_title: "音声モデルのセットアップ"
   models_intro: "Traudi には音声モデルが一度だけ必要です。HuggingFace からダウンロードして保存します。"
   models_choose: "モデル:"
