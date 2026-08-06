@@ -50,6 +50,7 @@ model_dir_marker('precise'),
 ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'),
 ('../prompts/prompt.yml', 'prompts/'),
 ('../prompts/prompt_nd.yml', 'prompts/'),
+('../prompts/vocab_justiz_de.txt', 'prompts/'),
 ('../README.md', '.')]
 
 # The editor lives in a separate repository and may not be checked out.

@@ -15,7 +15,8 @@ APP_VERSION = re.search(r'^__version__\s*=\s*"([^"]+)"', _version_src, re.M).gro
 _icns = os.path.join('..', 'img', 'traudi_logo.icns')
 BUNDLE_ICON = _icns if os.path.isfile(_icns) else None
 
-datas = [('../img/traudi_logo.ico', 'img'), ('../img/traudi_logo.png', 'img'), ('../LICENSE.txt', '.'), ('../models/precise', 'models/precise/'), ('../models/fast', 'models/fast/'), ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'), ('../prompts/prompt.yml', 'prompts'), ('../prompts/prompt_nd.yml', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
+datas = [('../img/traudi_logo.ico', 'img'), ('../img/traudi_logo.png', 'img'), ('../LICENSE.txt', '.'), ('../models/precise', 'models/precise/'), ('../models/fast', 'models/fast/'), ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'), ('../prompts/prompt.yml', 'prompts'), ('../prompts/prompt_nd.yml', 'prompts/'),
+('../prompts/vocab_justiz_de.txt', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
 binaries = []
 hiddenimports = ['noScribe.dialogs.about']
 datas += collect_data_files('faster_whisper')

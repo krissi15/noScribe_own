@@ -51,7 +51,7 @@ from faster_whisper.audio import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
 
-from . import audio, exception, model_download, transcription, utils
+from . import audio, exception, model_download, transcription, utils, whisper_args
 from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
 from .theme import COLORS, secondary_button, theme_path
@@ -241,6 +241,11 @@ force_whisper_cpu = get_config('force_whisper_cpu', '').lower() == 'true'
 # kein HuggingFace-Token vorlag), können sie hier abgelegt werden, ohne die
 # Anwendung neu zu installieren.
 user_pyannote_dir = Path(config_dir) / 'pyannote'
+
+# Eigene Fachbegriffe und Namen. Reiner Text, ein Begriff je Zeile -- so lässt
+# die Liste sich per Softwareverteilung ausrollen und im Kollegenkreis
+# weitergeben, was mit einem Eintrag in der config.yml nicht ginge.
+user_vocabulary_file = Path(config_dir) / 'vocabulary.txt'
 
 
 def resolve_pyannote_dir() -> Optional[Path]:
@@ -3230,6 +3235,22 @@ class App(ctk.CTk):
 
         return False
 
+    def _vocabulary(self) -> list:
+        """Fachbegriffe, die Whisper als Kontext mitbekommt.
+
+        Zwei Quellen: die mitgelieferte Justiz-Liste und die eigene Liste im
+        Einstellungsverzeichnis. Die eigene steht hinten an -- gekürzt wird von
+        hinten, und die mitgelieferte Liste ist auf das Nötigste beschränkt.
+        Umgekehrt würden eigene Namen die Grundbegriffe verdrängen.
+        """
+        terms = []
+        if str(get_config('use_builtin_vocabulary', 'True')) == 'True':
+            with impres.as_file(impres.files("prompts")) as prompts_dir:
+                terms += whisper_args.load_vocabulary_file(
+                    Path(prompts_dir) / 'vocab_justiz_de.txt')
+        terms += whisper_args.load_vocabulary_file(user_vocabulary_file)
+        return terms
+
     def _run_whisper_subprocess_stream(self, tmp_audio_file: str, job, on_segment):
         """Spawn a subprocess to run Faster-Whisper and stream segments.
         Calls on_segment(dict) for each segment streamed by the child.
@@ -3250,22 +3271,23 @@ class App(ctk.CTk):
         except Exception:
             vad_threshold = 0.5
 
-        args = {
-            "whisper_model": job.whisper_model,
-            "device": 'cpu' if force_whisper_cpu else 'auto',
-            "compute_type": job.whisper_compute_type,
-            "cpu_threads": number_threads,
-            "local_files_only": True,
-            "audio_path": tmp_audio_file,
-            "language_name": job.language_name,
-            "language_code": language_code,
-            "disfluencies": job.disfluencies,
-            "beam_size": 5,
-            "word_timestamps": True,
-            "vad_filter": True,
-            "vad_threshold": vad_threshold,
-            "locale": config.get("locale", "en"),
-        }
+        args = whisper_args.build_transcribe_options(
+            job,
+            # 'auto' heißt: das Kind entscheidet anhand der vorhandenen
+            # Hardware. Erst dort steht fest, ob int8 (CPU) oder float16 (GPU)
+            # die richtige Rechengenauigkeit ist.
+            device='cpu' if force_whisper_cpu else 'auto',
+            number_threads=number_threads,
+            language_code=language_code,
+            vad_threshold=vad_threshold,
+            vocabulary=self._vocabulary(),
+            condition_on_previous_text=(
+                str(get_config('whisper_condition_on_previous_text', 'False')) == 'True'),
+            locale=config.get("locale", "de"),
+        )
+        args["audio_path"] = tmp_audio_file
+        self.logn(f'whisper beam size: {args["beam_size"]}', where='file')
+        self.logn(f'whisper vocabulary terms: {len(args["vocabulary"])}', where='file')
 
         # Spawn child process using spawn start method
         ctx = mp.get_context("spawn")

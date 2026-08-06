@@ -4,7 +4,8 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('../img/traudi_logo.png', 'img/'), ('../LICENSE.txt', '.'), ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'), ('../prompts/prompt.yml', 'prompts/'), ('../prompts/prompt_nd.yml', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
+datas = [('../img/traudi_logo.png', 'img/'), ('../LICENSE.txt', '.'), ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'), ('../prompts/prompt.yml', 'prompts/'), ('../prompts/prompt_nd.yml', 'prompts/'),
+('../prompts/vocab_justiz_de.txt', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
 binaries = []
 hiddenimports = ['PIL._tkinter_finder', 'noScribe.dialogs.about']
 datas += collect_data_files('faster_whisper')
