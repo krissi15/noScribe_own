@@ -1,4 +1,11 @@
 de:
+  about_button: "Über"
+  about_title: "Über Traudi"
+  about_version: "Version %{v}"
+  about_close: "Schließen"
+  about_open_logs: "Protokolle"
+  about_open_config: "Einstellungsordner"
+  about_website: "Projektseite"
   err_pyannote_weights_missing: "Die Gewichte für die Sprechererkennung fehlen. Die Transkription selbst funktioniert weiterhin — nur die Sprechererkennung nicht. Zum Nachrüsten die Dateien segmentation/pytorch_model.bin und embedding/pytorch_model.bin nach %{dir} legen (Bezugsquelle siehe README)."
   models_title: "Sprachmodell einrichten"
   models_intro: "Traudi braucht einmalig ein Sprachmodell. Es wird von HuggingFace geladen und dauerhaft gespeichert."

@@ -14,7 +14,12 @@ project_root = os.path.abspath(os.path.join(SPECPATH, '..'))
 
 noScribe_datas = [] 
 noScribe_binaries = []
-noScribe_hiddenimports = []
+noScribe_hiddenimports = [
+    # Der Über-Dialog wird erst beim Anklicken importiert; PyInstaller
+    # findet solche Importe zwar meist selbst, aber ein fehlendes Modul
+    # fällt erst beim Klick im fertigen Installer auf.
+    'noScribe.dialogs.about',
+]
 
 # The Whisper models (0.8 / 1.6 GB) are NOT bundled. Traudi fetches them into
 # the user's data directory on first start; see noScribe/model_download.py.
@@ -99,9 +104,22 @@ noScribe_a = Analysis(
 
 noScribe_pyz = PYZ(noScribe_a.pure, noScribe_a.zipped_data, cipher=block_cipher)
 
+# Der Startbildschirm wird vom C-Bootloader gezeichnet, BEVOR Python startet.
+# Ein Fenster aus CustomTkinter käme zu spät: die spürbare Wartezeit entsteht
+# beim Import von torch und pyannote, lange bevor es ein Tk-Fenster gibt.
+# main.py schließt ihn über pyi_splash, sobald das Hauptfenster steht.
+noScribe_splash = Splash(
+    '../img/traudi_splash.png',
+    binaries=noScribe_a.binaries,
+    datas=noScribe_a.datas,
+    text_pos=None,
+    always_on_top=False,
+)
+
 noScribe_exe = EXE(
     noScribe_pyz,
     noScribe_a.scripts,
+    noScribe_splash,
     [],
     exclude_binaries=True,
     name='Traudi',
@@ -122,6 +140,7 @@ noScribe_exe = EXE(
 # assemble the dist folder with all needed DLLs, datas, etc.
 noScribe_coll = COLLECT(
     noScribe_exe,
+    noScribe_splash.binaries,
     noScribe_a.binaries,
     noScribe_a.zipfiles,
     noScribe_a.datas,

@@ -53,6 +53,21 @@ COLORS = {
     'status_error': '#B00000',
 }
 
+def secondary_button() -> dict:
+    """Stil für nachgeordnete Schaltflächen (heller Rahmen statt roter Fläche).
+
+    Als Funktion und nicht als Konstante, damit niemand versehentlich das
+    zurückgegebene Dict verändert und damit alle anderen Knöpfe mit umfärbt.
+    """
+    return {
+        'fg_color': 'transparent',
+        'hover_color': COLORS['bg'],
+        'text_color': COLORS['black'],
+        'border_width': 1,
+        'border_color': COLORS['border'],
+    }
+
+
 THEME_FILE = 'rlp_justiz.json'
 
 

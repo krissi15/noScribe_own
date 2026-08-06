@@ -1,4 +1,11 @@
 zh-CN: &defaults
+  about_button: "关于"
+  about_title: "关于 Traudi"
+  about_version: "版本 %{v}"
+  about_close: "关闭"
+  about_open_logs: "日志"
+  about_open_config: "设置文件夹"
+  about_website: "项目页面"
   err_pyannote_weights_missing: "缺少说话人识别的权重文件。转录本身仍可正常工作，只有说话人识别不可用。如需补充，请将 segmentation/pytorch_model.bin 和 embedding/pytorch_model.bin 放入 %{dir}（获取方式见 README）。"
   models_title: "设置语音模型"
   models_intro: "Traudi 需要一次性下载语音模型。模型从 HuggingFace 下载并保存在本地。"

@@ -1,4 +1,11 @@
 fr:
+  about_button: "À propos"
+  about_title: "À propos de Traudi"
+  about_version: "Version %{v}"
+  about_close: "Fermer"
+  about_open_logs: "Journaux"
+  about_open_config: "Dossier des réglages"
+  about_website: "Page du projet"
   err_pyannote_weights_missing: "Les poids pour la reconnaissance des locuteurs sont absents. La transcription fonctionne toujours ; seule la reconnaissance des locuteurs ne fonctionne pas. Pour les ajouter, placez segmentation/pytorch_model.bin et embedding/pytorch_model.bin dans %{dir} (voir le README)."
   models_title: "Configurer le modèle vocal"
   models_intro: "Traudi a besoin d'un modèle vocal une seule fois. Il est téléchargé depuis HuggingFace et conservé sur le disque."

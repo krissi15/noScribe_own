@@ -6,7 +6,7 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('../img/traudi_logo.png', 'img/'), ('../LICENSE.txt', '.'), ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'), ('../prompts/prompt.yml', 'prompts/'), ('../prompts/prompt_nd.yml', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
 binaries = []
-hiddenimports = ['PIL._tkinter_finder']
+hiddenimports = ['PIL._tkinter_finder', 'noScribe.dialogs.about']
 datas += collect_data_files('faster_whisper')
 datas += collect_data_files('lightning_fabric')
 tmp_ret = collect_all('pyannote')
@@ -41,12 +41,23 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+# Siehe noScribe_win.spec: der Bootloader zeichnet den Startbildschirm, bevor
+# Python (und damit torch) geladen wird.
+splash = Splash(
+    '../img/traudi_splash.png',
+    binaries=a.binaries,
+    datas=a.datas,
+    text_pos=None,
+    always_on_top=False,
+)
+
 exe = EXE(
     pyz,
     a.scripts,
+    splash,
     [],
     exclude_binaries=True,
-    name='noScribe',
+    name='Traudi',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -61,10 +72,11 @@ exe = EXE(
 )
 coll = COLLECT(
     exe,
+    splash.binaries,
     a.binaries,
     a.datas,
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='noScribe',
+    name='Traudi',
 )

@@ -17,7 +17,7 @@ BUNDLE_ICON = _icns if os.path.isfile(_icns) else None
 
 datas = [('../img/traudi_logo.ico', 'img'), ('../img/traudi_logo.png', 'img'), ('../LICENSE.txt', '.'), ('../models/precise', 'models/precise/'), ('../models/fast', 'models/fast/'), ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'), ('../prompts/prompt.yml', 'prompts'), ('../prompts/prompt_nd.yml', 'prompts/'), ('../pyannote', 'pyannote/'), ('../README.md', '.'), ('../trans', 'trans/')]
 binaries = []
-hiddenimports = []
+hiddenimports = ['noScribe.dialogs.about']
 datas += collect_data_files('faster_whisper')
 datas += collect_data_files('lightning_fabric')
 tmp_ret = collect_all('pyannote')

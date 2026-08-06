@@ -1,4 +1,11 @@
 ja:
+  about_button: "情報"
+  about_title: "Traudi について"
+  about_version: "バージョン %{v}"
+  about_close: "閉じる"
+  about_open_logs: "ログ"
+  about_open_config: "設定フォルダー"
+  about_website: "プロジェクトページ"
   err_pyannote_weights_missing: "話者認識の重みファイルがありません。文字起こし自体は引き続き動作しますが、話者認識は利用できません。追加するには segmentation/pytorch_model.bin と embedding/pytorch_model.bin を %{dir} に配置してください（入手先は README を参照）。"
   models_title: "音声モデルのセットアップ"
   models_intro: "Traudi には音声モデルが一度だけ必要です。HuggingFace からダウンロードして保存します。"

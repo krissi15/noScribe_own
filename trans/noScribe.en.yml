@@ -1,4 +1,11 @@
 en:
+  about_button: "About"
+  about_title: "About Traudi"
+  about_version: "Version %{v}"
+  about_close: "Close"
+  about_open_logs: "Logs"
+  about_open_config: "Settings folder"
+  about_website: "Project page"
   err_pyannote_weights_missing: "The speaker recognition weights are missing. Transcription itself still works — only speaker recognition does not. To add them, place segmentation/pytorch_model.bin and embedding/pytorch_model.bin into %{dir} (see the README for where to get them)."
   models_title: "Set up speech model"
   models_intro: "Traudi needs a speech model once. It is downloaded from HuggingFace and kept on disk."

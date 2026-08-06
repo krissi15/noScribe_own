@@ -37,7 +37,7 @@ build = ["pyinstaller==6.14.1"]
 # pyannote/ liegen als Namespace-Pakete neben noScribe/ und werden über
 # importlib.resources gefunden -- ein nicht-editierbarer Install würde sie
 # nicht mitnehmen. Für Endnutzer gibt es den Installer.
-packages = ["noScribe", "noScribe.audio", "noScribe.theme"]
+packages = ["noScribe", "noScribe.audio", "noScribe.dialogs", "noScribe.theme"]
 
 [tool.setuptools.dynamic]
 version = { attr = "noScribe._version.__version__" }
