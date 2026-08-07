@@ -118,6 +118,7 @@ def run_nsis(dist_dir: Path, version: str, cuda: bool, nsis: Path) -> Path:
 
     script = (template
               .replace('#*version*#', format_version(version))
+              .replace('#*display_version*#', version)
               .replace('#*year*#', str(datetime.now().year))
               .replace('#*license_txt*#', str(PROJECT_ROOT / 'LICENSE.txt'))
               .replace('#*installer_name*#', str(installer_path))

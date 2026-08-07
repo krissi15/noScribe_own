@@ -17,6 +17,7 @@ von Kai Dröge (GPL-3.0).
 ## Inhalt
 
 - [Installation für Anwenderinnen und Anwender](#installation-für-anwenderinnen-und-anwender)
+- [Zentrale Verteilung](#zentrale-verteilung)
 - [Installation für Entwicklung](#installation-für-entwicklung)
 - [Sprechererkennung einrichten](#sprechererkennung-einrichten)
 - [Bedienung](#bedienung)
@@ -47,7 +48,73 @@ Verbindung einige Minuten. Danach arbeitet die Anwendung offline.
 > `%LOCALAPPDATA%\Traudi\Traudi\whisper_models\precise`.
 
 **Für die Verteilung auf viele Rechner** akzeptiert der Installer den Schalter
-`/S` für eine unbeaufsichtigte Installation.
+`/S` für eine unbeaufsichtigte Installation. Einzelheiten für die
+Softwareverteilung stehen unter [Zentrale Verteilung](#zentrale-verteilung).
+
+---
+
+## Zentrale Verteilung
+
+Dieser Abschnitt richtet sich an die IT, nicht an Anwenderinnen und Anwender.
+
+Traudi wird **maschinenweit** installiert: nach `%ProgramFiles%\Traudi`, mit
+Registrierung unter `HKLM`. Der Installer fordert Administratorrechte
+ausdrücklich an (`RequestExecutionLevel admin`). Die Verknüpfungen im Startmenü
+und auf dem Desktop werden für **alle** Benutzenden des Rechners angelegt.
+
+### Befehle
+
+| Zweck | Befehl |
+|---|---|
+| Installieren, unbeaufsichtigt | `Traudi_setup_<version>.exe /S` |
+| Zielverzeichnis abweichend | `Traudi_setup_<version>.exe /S /D=C:\Programme\Traudi` |
+| Deinstallieren, unbeaufsichtigt | `"%ProgramFiles%\Traudi\uninstall.exe" /S` |
+
+`/D` muss der **letzte** Schalter sein und darf keine Anführungszeichen tragen —
+eine Eigenheit von NSIS.
+
+Eine frühere Version wird beim unbeaufsichtigten Lauf automatisch und ohne
+Rückfrage entfernt.
+
+### Erkennungsregel
+
+Für Intune, SCCM oder Matrix42 genügt ein Registrierungsschlüssel; ein eigenes
+MSI-Paket ist dafür nicht nötig.
+
+```
+Schlüssel: HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Traudi
+Wert:      DisplayVersion
+Methode:   Zeichenfolgenvergleich, "ist gleich" <version>
+```
+
+Unter demselben Schlüssel stehen außerdem `DisplayName`, `Publisher`,
+`EstimatedSize`, `DisplayIcon` sowie `QuietUninstallString` — Letzteres macht
+den Rückbau über die Softwareverteilung möglich.
+
+### Was nach der Installation noch fehlt
+
+Die Setup-Datei enthält **kein Sprachmodell**. Ohne eines lässt sich nichts
+transkribieren. Beim ersten Start bietet Traudi den Download an (rund 1,6 GB je
+Arbeitsplatz).
+
+Wer das nicht über jeden einzelnen Arbeitsplatz laufen lassen will, verteilt das
+Modell mit: einmal mit `python scripts/fetch_models.py --only precise` laden und
+den Ordner `models/precise` ausrollen nach
+
+```
+%LOCALAPPDATA%\Traudi\Traudi\whisper_models\precise
+```
+
+Das ist ein **benutzerbezogener** Pfad — die Verteilung muss also im
+Benutzerkontext laufen, nicht als System.
+
+### Signatur
+
+Die Installationsdatei ist **nicht signiert**. SmartScreen warnt deshalb vor
+einem unbekannten Herausgeber, und AppLocker- oder WDAC-Richtlinien können sie
+blockieren. Für einen Rollout in der Fläche wird ein Codesignatur-Zertifikat
+gebraucht; dessen Beschaffung hat erfahrungsgemäß Vorlaufzeit und sollte früh
+angestoßen werden.
 
 ---
 

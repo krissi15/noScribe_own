@@ -8,7 +8,12 @@
 !define APP_USER_MODEL_ID "de.rlp.justiz.Traudi"
 !define COMP_NAME "Ministerium der Justiz Rheinland-Pfalz"
 !define WEB_SITE "https://github.com/krissi15/noScribe_own"
+; VERSION ist vierstellig, weil VIProductVersion das verlangt. Was Windows in
+; "Apps & Features" anzeigt und was eine Erkennungsregel der Softwareverteilung
+; vergleicht, soll aber die echte Version sein -- sonst prueft die IT gegen
+; "0.7.3", waehrend dort "0.7.3.0" steht.
 !define VERSION "#*version*#"
+!define DISPLAY_VERSION "#*display_version*#"
 !define COPYRIGHT "Traudi, basierend auf noScribe von Kai Dröge, GPL-3.0  (c) #*year*#"
 !define DESCRIPTION "Traudi - Transkription für die Justiz"
 !define LICENSE_TXT "#*license_txt*#"
@@ -193,7 +198,7 @@ WriteRegStr ${REG_ROOT} "${REG_APP_PATH}" "" "$INSTDIR\${MAIN_APP_EXE}"
 WriteRegStr ${REG_ROOT} "${UNINSTALL_PATH}"  "DisplayName" "${APP_NAME}"
 WriteRegStr ${REG_ROOT} "${UNINSTALL_PATH}"  "UninstallString" "$INSTDIR\uninstall.exe"
 WriteRegStr ${REG_ROOT} "${UNINSTALL_PATH}"  "DisplayIcon" "$INSTDIR\${MAIN_APP_EXE},0"
-WriteRegStr ${REG_ROOT} "${UNINSTALL_PATH}"  "DisplayVersion" "${VERSION}"
+WriteRegStr ${REG_ROOT} "${UNINSTALL_PATH}"  "DisplayVersion" "${DISPLAY_VERSION}"
 WriteRegStr ${REG_ROOT} "${UNINSTALL_PATH}"  "Publisher" "${COMP_NAME}"
 ; Ohne QuietUninstallString kann eine zentrale Softwareverteilung Traudi
 ; nicht unbeaufsichtigt wieder entfernen.

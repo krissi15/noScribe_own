@@ -69,6 +69,15 @@ def test_unattended_uninstall_is_possible(template):
     assert 'QuietUninstallString' in template
 
 
+def test_display_version_is_the_real_version(template):
+    """VERSION ist vierstellig (VIProductVersion verlangt das). Wuerde
+    DisplayVersion daraus gespeist, stuende in der Registry "0.7.3.0", waehrend
+    eine Erkennungsregel der Softwareverteilung gegen "0.7.3" prueft."""
+    line = next(l for l in template.splitlines() if '"DisplayVersion"' in l)
+    assert '${DISPLAY_VERSION}' in line, line
+    assert '${VERSION}' not in line, line
+
+
 def test_the_wizard_starts_in_german(template):
     german = template.index('!insertmacro MUI_LANGUAGE "German"')
     english = template.index('!insertmacro MUI_LANGUAGE "English"')
