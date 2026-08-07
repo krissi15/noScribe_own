@@ -1,0 +1,44 @@
+# Fachwortschatz der Justiz – wird Whisper als Kontext mitgegeben.
+#
+# Ein Begriff je Zeile. Alles hinter '#' ist Kommentar.
+#
+# Bitte kurz halten: Whisper verarbeitet nur die ersten rund 224 Token des
+# Prompts, danach wird stillschweigend abgeschnitten. Diese Liste ist deshalb
+# auf Begriffe beschränkt, die häufig vorkommen UND von der automatischen
+# Erkennung regelmäßig verfehlt werden. Alltagswörter gehören nicht hierher --
+# die trifft das Modell ohnehin.
+#
+# Eigene Ergänzungen (Namen, Orte, Behörden des eigenen Bezirks) gehören NICHT
+# in diese Datei, sondern in die eigene Wortliste unter "Einstellungen". Diese
+# Datei wird bei einer Aktualisierung überschrieben.
+
+# Verfahrensbeteiligte
+Beschuldigter
+Angeklagte
+Zeugenvernehmung
+Nebenkläger
+Sachverständiger
+Verteidigerin
+Staatsanwaltschaft
+Rechtspflegerin
+
+# Verfahren
+Hauptverhandlung
+Beweisaufnahme
+Vernehmungsniederschrift
+Einlassung
+Aussagegenehmigung
+Belehrung
+Rechtsmittelbelehrung
+Sitzungsprotokoll
+
+# Bezeichnungen und Fundstellen
+Aktenzeichen
+Amtsgericht
+Landgericht
+Oberlandesgericht
+Strafgesetzbuch
+Strafprozessordnung
+Bürgerliches Gesetzbuch
+Paragraf
+Absatz

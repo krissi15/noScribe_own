@@ -2,13 +2,31 @@ name: Build Windows installer
 
 on:
   workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Welche Variante gebaut werden soll'
+        type: choice
+        default: cpu
+        options: [cpu, cuda]
   push:
     tags:
       - 'v*'
 
+# softprops/action-gh-release braucht Schreibrechte, um den Installer an das
+# Release zu hängen. Ohne diesen Block scheitert der letzte Schritt.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
+
+    env:
+      VARIANT: ${{ github.event.inputs.variant || 'cpu' }}
+      # Auf Job-Ebene, damit die Schritte unten `env.HF_TOKEN` in ihrer
+      # `if`-Bedingung prüfen können -- der `secrets`-Kontext steht dort
+      # nicht zur Verfügung.
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -17,30 +35,65 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: environments/requirements_win_cpu.txt
+          cache-dependency-path: environments/requirements_win_${{ github.event.inputs.variant || 'cpu' }}.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r environments/requirements_win_cpu.txt
+          if ($env:VARIANT -eq 'cpu') {
+            # Zuerst und getrennt aus dem CPU-Index -- siehe Kommentar in
+            # environments/requirements_win_cpu.txt.
+            pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8 torchaudio==2.8
+          }
+          pip install -r environments/requirements_win_$env:VARIANT.txt
 
-      # The Whisper weights are not bundled - Traudi downloads them on first
-      # start. The diarization weights are only 32 MB and have to ship with the
-      # installer, because their repository is gated.
+      # Regressionsschutz fuer genau den Fehler, der diesen Bau bisher
+      # vermutlich hat scheitern lassen: eine "CPU"-Variante, die in
+      # Wirklichkeit die CUDA-Raeder samt Laufzeit mitbringt (mehrere GB).
+      - name: Verify the CPU build really is CPU-only
+        if: env.VARIANT == 'cpu'
+        run: |
+          python -c "import torch, sys; print('torch', torch.__version__, 'cuda', torch.version.cuda); sys.exit(1 if torch.version.cuda else 0)"
+
+      # Die Whisper-Gewichte werden nicht mitgeliefert - Traudi lädt sie beim
+      # ersten Start. Die Diarisierungs-Gewichte sind nur 32 MB und sollten
+      # mitkommen, weil ihr Repository zugangsbeschränkt ist.
+      #
+      # Fehlt das Secret, bricht der Bau NICHT ab: Traudi lädt die Gewichte
+      # dann beim ersten Bedarf nach. Ein Installer ohne Sprechererkennung ist
+      # allemal besser als gar kein Installer.
       - name: Fetch diarization weights
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        id: pyannote
+        if: env.HF_TOKEN != ''
+        continue-on-error: true
         run: python scripts/fetch_models.py --skip-whisper --pyannote
+
+      - name: Warn if diarization weights are missing
+        if: env.HF_TOKEN == '' || steps.pyannote.outcome == 'failure'
+        run: |
+          Write-Warning "Die Diarisierungs-Gewichte fehlen im Installer."
+          Write-Warning "Traudi laedt sie beim ersten Bedarf nach."
+          Write-Warning "Zum Mitliefern das Repository-Secret HF_TOKEN hinterlegen."
 
       - name: Install NSIS
         run: choco install nsis --no-progress -y
 
+      # Der PyInstaller-Lauf ist der plattenhungrigste Schritt. Schlaegt er
+      # fehl, spart diese Ausgabe eine Rateschleife.
+      - name: Report free disk space
+        run: Get-PSDrive C | Select-Object Used, Free
+
       - name: Build installer
-        run: python pyinstaller/win_build.py
+        run: |
+          if ($env:VARIANT -eq 'cuda') {
+            python pyinstaller/win_build.py --cuda
+          } else {
+            python pyinstaller/win_build.py
+          }
 
       - uses: actions/upload-artifact@v4
         with:
-          name: traudi-windows-installer
+          name: traudi-windows-installer-${{ github.event.inputs.variant || 'cpu' }}
           path: pyinstaller/win_installer/*.exe
           if-no-files-found: error
 

@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Traudi
+GenericName=Transkription
+Comment=Tonaufnahmen automatisch in Text verwandeln – vollständig auf dem eigenen Rechner
+Comment[en]=Turn audio recordings into text – entirely on your own machine
+# Wird von install-desktop-entry.sh auf den tatsächlichen Pfad gesetzt.
+Exec=traudi %f
+Icon=traudi
+Terminal=false
+Categories=AudioVideo;Audio;Utility;
+Keywords=Transkription;Transcription;Audio;Whisper;Protokoll;
+MimeType=audio/mpeg;audio/x-wav;audio/flac;audio/ogg;audio/mp4;video/mp4;video/quicktime;video/x-matroska;
+StartupNotify=true
+StartupWMClass=Traudi

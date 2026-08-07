@@ -45,14 +45,16 @@ import appdirs
 import customtkinter as ctk
 import i18n
 import yaml
+from PIL import Image
 from customtkinter.windows.widgets.scaling import CTkScalingBaseClass
 from faster_whisper.audio import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
 
-from . import audio, exception, model_download, transcription, utils
+from . import audio, exception, model_download, transcription, utils, whisper_args
+from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
-from .theme import COLORS, theme_path
+from .theme import COLORS, secondary_button, theme_path
 from .tkHyperlinkManager import HyperlinkManager
 
 if platform.system() == "Darwin": # = MAC
@@ -83,11 +85,27 @@ logging.basicConfig()
 logging.getLogger("faster_whisper").setLevel(logging.DEBUG)
 logger = logging.getLogger()
 
-app_version = '0.7.2'
-app_year = '2026'
+app_version = __version__
+app_year = __year__
 
 ctk.set_appearance_mode('light')
 ctk.set_default_color_theme(theme_path())
+
+# Windows gruppiert Fenster in der Taskleiste nach der AppUserModelID. Ohne
+# eine eigene erbt eine Tkinter-Anwendung die des Python-Interpreters -- die
+# Taskleiste zeigt dann das Python-Symbol statt des Fenster-Icons, und
+# angeheftete Verknüpfungen legen sich nicht mit dem laufenden Fenster
+# zusammen. Dieselbe Kennung benutzt auch die Verknüpfung im Startmenü.
+APP_USER_MODEL_ID = 'de.rlp.justiz.Traudi'
+if platform.system() == 'Windows':
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+    except (AttributeError, OSError):
+        # Ältere Windows-Fassungen kennen den Aufruf nicht. Kosmetisch, nicht
+        # kritisch -- die Anwendung läuft auch ohne.
+        logger.debug('SetCurrentProcessExplicitAppUserModelID nicht verfügbar',
+                     exc_info=True)
 
 default_html = """
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
@@ -215,6 +233,37 @@ def get_config(key: str, default) -> str:
 
 force_pyannote_cpu = get_config('force_pyannote_cpu', '').lower() == 'true'
 force_whisper_cpu = get_config('force_whisper_cpu', '').lower() == 'true'
+
+# Nutzerseitiger Ablageort für die Diarisierungs-Gewichte.
+#
+# Im Bündel liegen sie unter Program Files, wo ohne Administratorrechte nicht
+# geschrieben werden darf. Bringt der Installer sie nicht mit (weil beim Bau
+# kein HuggingFace-Token vorlag), können sie hier abgelegt werden, ohne die
+# Anwendung neu zu installieren.
+user_pyannote_dir = Path(config_dir) / 'pyannote'
+
+# Eigene Fachbegriffe und Namen. Reiner Text, ein Begriff je Zeile -- so lässt
+# die Liste sich per Softwareverteilung ausrollen und im Kollegenkreis
+# weitergeben, was mit einem Eintrag in der config.yml nicht ginge.
+user_vocabulary_file = Path(config_dir) / 'vocabulary.txt'
+
+
+def resolve_pyannote_dir() -> Optional[Path]:
+    """Verzeichnis mit vollständigen Diarisierungs-Gewichten, sonst None.
+
+    Das Nutzerverzeichnis hat Vorrang: wer dort nachgelegt hat, will die
+    nachgelegte Fassung benutzen.
+    """
+    if model_download.pyannote_weights_present(user_pyannote_dir):
+        return user_pyannote_dir
+    with impres.as_file(impres.files("pyannote")) as bundled:
+        if model_download.pyannote_weights_present(bundled):
+            # as_file kann bei gepackten Ressourcen ein temporäres Verzeichnis
+            # liefern, das beim Verlassen verschwindet. Bei PyInstaller und im
+            # Entwicklungsbaum liegt der Ordner real auf der Platte, deshalb
+            # bleibt der Pfad gültig.
+            return Path(bundled)
+    return None
 
 _CUDA_ERROR_KEYWORDS = (
     'cuda',
@@ -797,13 +846,7 @@ ROW_BTN_DANGER = {
 
 # Red is reserved for the primary action (Start), so every other button is an
 # outline button. "Cancel" only differs by its text color.
-SECONDARY_BTN = {
-    'fg_color': 'transparent',
-    'hover_color': COLORS['bg'],
-    'text_color': COLORS['black'],
-    'border_width': 1,
-    'border_color': COLORS['border'],
-}
+SECONDARY_BTN = secondary_button()
 DANGER_BTN = dict(SECONDARY_BTN, text_color=COLORS['error'])
 
 
@@ -1130,8 +1173,24 @@ class App(ctk.CTk):
         self.frame_header.pack_propagate(False)
         self.frame_header.pack(padx=0, pady=0, anchor='nw', fill='x')
 
+        # The Traudi artwork -- deliberately NOT the state coat of arms, see the
+        # comment further down. CTkImage (not tk.PhotoImage) because only it
+        # scales correctly on high-DPI displays.
+        try:
+            self.header_logo_image = ctk.CTkImage(
+                light_image=Image.open(impres.files("img") / "traudi_logo.png"),
+                size=(44, 44))
+            ctk.CTkLabel(self.frame_header, image=self.header_logo_image, text='').pack(
+                anchor='w', side='left', padx=[20, 0])
+            wordmark_padx = 12
+        except (OSError, ValueError):
+            # Ohne Logo ist die Kopfzeile schlichter, aber die Anwendung läuft.
+            logger.warning('Kopfzeilen-Logo konnte nicht geladen werden', exc_info=True)
+            self.header_logo_image = None
+            wordmark_padx = 20
+
         self.frame_header_logo = ctk.CTkFrame(self.frame_header, fg_color='transparent')
-        self.frame_header_logo.pack(anchor='w', side='left', padx=20)
+        self.frame_header_logo.pack(anchor='w', side='left', padx=[wordmark_padx, 20])
 
         # wordmark
         self.logo_label = ctk.CTkLabel(self.frame_header_logo, text=t('app_name'),
@@ -1150,7 +1209,17 @@ class App(ctk.CTk):
         self.authority_label = ctk.CTkLabel(self.frame_header, text=t('app_authority'),
                                             font=ctk.CTkFont(size=12),
                                             text_color=COLORS['white'])
-        self.authority_label.pack(anchor='e', side='right', padx=20)
+        self.authority_label.pack(anchor='e', side='right', padx=[0, 20])
+
+        # Herkunft und Lizenz sind bei einer GPL-Abwandlung Pflichtangaben und
+        # brauchen einen festen Platz. Auf dem dunklen Grund der Kopfzeile
+        # bekommt der Knopf einen hellen Rahmen statt der üblichen Umrandung.
+        self.button_about = ctk.CTkButton(
+            self.frame_header, text=t('about_button'), width=36, height=28,
+            fg_color='transparent', hover_color=COLORS['text_muted'],
+            text_color=COLORS['white'], border_width=1, border_color=COLORS['text_muted'],
+            command=self.open_about)
+        self.button_about.pack(anchor='e', side='right', padx=[0, 16])
 
         # Accent rule in the state colours. The black band is the header itself,
         # which is why only red and gold are drawn here.
@@ -2707,9 +2776,10 @@ class App(ctk.CTk):
 
                         # Check before spending a minute on audio the pipeline
                         # cannot load: the gated weights are fetched separately.
-                        with impres.as_file(impres.files("pyannote")) as pyannote_dir:
-                            if not model_download.pyannote_weights_present(pyannote_dir):
-                                raise FileNotFoundError(t('err_pyannote_weights_missing'))
+                        pyannote_dir = resolve_pyannote_dir()
+                        if pyannote_dir is None:
+                            raise FileNotFoundError(
+                                t('err_pyannote_weights_missing', dir=str(user_pyannote_dir)))
 
                         self.logn(t('loading_pyannote'))
                         # self.set_progress(1, 100, job.speaker_detection)
@@ -3165,6 +3235,22 @@ class App(ctk.CTk):
 
         return False
 
+    def _vocabulary(self) -> list:
+        """Fachbegriffe, die Whisper als Kontext mitbekommt.
+
+        Zwei Quellen: die mitgelieferte Justiz-Liste und die eigene Liste im
+        Einstellungsverzeichnis. Die eigene steht hinten an -- gekürzt wird von
+        hinten, und die mitgelieferte Liste ist auf das Nötigste beschränkt.
+        Umgekehrt würden eigene Namen die Grundbegriffe verdrängen.
+        """
+        terms = []
+        if str(get_config('use_builtin_vocabulary', 'True')) == 'True':
+            with impres.as_file(impres.files("prompts")) as prompts_dir:
+                terms += whisper_args.load_vocabulary_file(
+                    Path(prompts_dir) / 'vocab_justiz_de.txt')
+        terms += whisper_args.load_vocabulary_file(user_vocabulary_file)
+        return terms
+
     def _run_whisper_subprocess_stream(self, tmp_audio_file: str, job, on_segment):
         """Spawn a subprocess to run Faster-Whisper and stream segments.
         Calls on_segment(dict) for each segment streamed by the child.
@@ -3185,22 +3271,23 @@ class App(ctk.CTk):
         except Exception:
             vad_threshold = 0.5
 
-        args = {
-            "whisper_model": job.whisper_model,
-            "device": 'cpu' if force_whisper_cpu else 'auto',
-            "compute_type": job.whisper_compute_type,
-            "cpu_threads": number_threads,
-            "local_files_only": True,
-            "audio_path": tmp_audio_file,
-            "language_name": job.language_name,
-            "language_code": language_code,
-            "disfluencies": job.disfluencies,
-            "beam_size": 5,
-            "word_timestamps": True,
-            "vad_filter": True,
-            "vad_threshold": vad_threshold,
-            "locale": config.get("locale", "en"),
-        }
+        args = whisper_args.build_transcribe_options(
+            job,
+            # 'auto' heißt: das Kind entscheidet anhand der vorhandenen
+            # Hardware. Erst dort steht fest, ob int8 (CPU) oder float16 (GPU)
+            # die richtige Rechengenauigkeit ist.
+            device='cpu' if force_whisper_cpu else 'auto',
+            number_threads=number_threads,
+            language_code=language_code,
+            vad_threshold=vad_threshold,
+            vocabulary=self._vocabulary(),
+            condition_on_previous_text=(
+                str(get_config('whisper_condition_on_previous_text', 'False')) == 'True'),
+            locale=config.get("locale", "de"),
+        )
+        args["audio_path"] = tmp_audio_file
+        self.logn(f'whisper beam size: {args["beam_size"]}', where='file')
+        self.logn(f'whisper vocabulary terms: {len(args["vocabulary"])}', where='file')
 
         # Spawn child process using spawn start method
         ctx = mp.get_context("spawn")
@@ -3313,6 +3400,9 @@ class App(ctk.CTk):
             "device": 'cpu' if force_pyannote_cpu else '',
             "audio_path": tmp_audio_file,
             "num_speakers": (int(job.speaker_detection) if str(job.speaker_detection).isdigit() else None),
+            # Der Elternprozess hat bereits entschieden, welche Ablage die
+            # vollständigen Gewichte hat (Nutzerverzeichnis oder Bündel).
+            "pyannote_dir": str(resolve_pyannote_dir() or ''),
         }
         proc = ctx.Process(target=pyannote_proc_entrypoint, args=(args, q))
         proc.start()
@@ -3386,6 +3476,15 @@ class App(ctk.CTk):
 
         return diarization or []
     
+    def open_about(self):
+        """Zeigt Version, Herkunft und Lizenz.
+
+        Der Dialog wird bewusst erst hier importiert: er zieht Pillow nach,
+        und beim Programmstart zählt jede eingesparte Sekunde.
+        """
+        from .dialogs.about import AboutDialog
+        AboutDialog(self, Path(config_dir))
+
     def on_closing(self):
         # (see: https://stackoverflow.com/questions/111155/how-do-i-handle-the-window-close-event-in-tkinter)
         global force_pyannote_cpu
@@ -3811,6 +3910,17 @@ def noScribeMain():
     except Exception as e:
         # Non-fatal: continue to show GUI
         print(f"Warning: Failed to prefill GUI from CLI args: {e}")
+
+    # Den Startbildschirm des PyInstaller-Bootloaders schließen. Er liegt über
+    # allen Fenstern und bliebe sonst stehen. Im Entwicklungsbaum gibt es das
+    # Modul nicht -- dann war auch nie ein Startbildschirm da.
+    try:
+        import pyi_splash
+        pyi_splash.close()
+    except ImportError:
+        pass
+    except Exception:
+        logger.debug('Startbildschirm ließ sich nicht schließen', exc_info=True)
 
     # Enter GUI main loop
     app.mainloop()

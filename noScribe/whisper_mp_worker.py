@@ -7,6 +7,8 @@ import traceback
 from dataclasses import asdict, is_dataclass
 from i18n import t
 
+from .whisper_args import build_prompt, resolve_compute_type
+
 logger = logging.getLogger(__name__)
 
 
@@ -67,12 +69,19 @@ def whisper_proc_entrypoint(args: dict, q):
             else:
                 raise Exception('Platform not supported yet.')
             
+        # Die Rechengenauigkeit hängt vom tatsächlich gewählten Gerät ab, und
+        # das steht erst jetzt fest: bei device='auto' hat der Elternprozess
+        # geraten. int8 ist auf der CPU zwei- bis dreifach schneller als
+        # float32, bei einem für Sprachaufnahmen unerheblichen Unterschied.
+        compute_type = resolve_compute_type(args.get("compute_type_configured"), device)
+        plog("debug", f"device={device} compute_type={compute_type}")
+
         # Build model in child using provided options
         model = WhisperModel(
             str(args["whisper_model"].path),
             device=device,
-            compute_type=args.get("compute_type", "float16"),
-            cpu_threads=args.get("cpu_threads", 4),
+            compute_type=compute_type,
+            cpu_threads=args["cpu_threads"],
             local_files_only=args.get("local_files_only", True),
         )
 
@@ -123,29 +132,47 @@ def whisper_proc_entrypoint(args: dict, q):
             )
             log_cb("info", t('language_detect', lang=whisper_lang, prob=f'{language_probability:.2f}'))
 
-        # Build prompt/hotwords if disfluencies suppression is requested
-        prompt = ""
+        # Das Beispiel steuert, ob Füllworte ("ähm") erhalten bleiben. Es gibt
+        # es je Sprache, deshalb wird es erst hier geladen -- bei "Auto" steht
+        # die Sprache erst nach der Erkennung fest.
+        style_example = ""
         if args.get("disfluencies", False):
             prompt_file = impres.files("prompts") / "prompt.yml"
         else:
             prompt_file = impres.files("prompts") / "prompt_nd.yml"
         try:
             with prompt_file.open("r", encoding="utf-8") as f:
-                prompt = yaml.safe_load(f).get(whisper_lang, "")
+                style_example = yaml.safe_load(f).get(whisper_lang, "")
         except Exception as e:
             logger.exception(e)
             log_cb('error', t('err_loading_prompt') + '\n')
 
+        # Füllwort-Beispiel und Fachbegriffe gehen zusammen in EINEN
+        # initial_prompt. Vorher ging das Beispiel nach `hotwords`, während
+        # `initial_prompt` auskommentiert war -- faster-whisper baut aus beiden
+        # denselben Kontext, und wer bei gleichzeitiger Angabe gewinnt, hängt
+        # von der Fassung ab. Ein Kanal ist vorhersagbar.
+        prompt = build_prompt(style_example, args.get("vocabulary", []))
+        if prompt:
+            plog("debug", f"initial_prompt: {prompt}")
+
         # Perform transcription (streaming)
+        #
+        # `audio` statt `audio_path`: die Datei wurde oben bereits vollständig
+        # dekodiert. Den Pfad zu übergeben hieße, faster-whisper dekodiert sie
+        # ein zweites Mal -- bei einer Stunde Aufnahme eine spürbare Zugabe
+        # ganz ohne Gegenwert.
         segments, info = model.transcribe(
-            audio_path,
+            audio,
             language=whisper_lang,
             multilingual=multilingual,
-            beam_size=args.get("beam_size", 5),
-            # temperature=args.get("temperature"),
+            beam_size=args["beam_size"],
             word_timestamps=args.get("word_timestamps", True),
-            # initial_prompt=prompt,
-            hotwords=prompt,
+            initial_prompt=prompt or None,
+            # Bei langen Aufnahmen verfängt sich Whisper sonst in
+            # Wiederholungsschleifen: es speist den eigenen Ausgabetext als
+            # Kontext zurück und schaukelt sich daran auf.
+            condition_on_previous_text=args.get("condition_on_previous_text", False),
             vad_filter=args.get("vad_filter", True),
             vad_parameters=vad_parameters,
         )

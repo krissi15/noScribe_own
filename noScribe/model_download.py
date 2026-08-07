@@ -83,6 +83,33 @@ def pyannote_weights_present(pyannote_dir: Path) -> bool:
     return all((Path(pyannote_dir) / rel).is_file() for rel in PYANNOTE_WEIGHTS)
 
 
+def prepare_user_pyannote_dir(bundle_dir: Path, user_dir: Path) -> Path:
+    """Legt neben den nachzuladenden Gewichten die Pipeline-Konfiguration ab.
+
+    ``Pipeline.from_pretrained`` braucht nicht nur die beiden .bin-Dateien,
+    sondern auch die config.yaml und die kleinen Beidateien. Die liegen im
+    Programmverzeichnis -- unter Windows in ``Program Files``, wo ohne
+    Administratorrechte nicht geschrieben werden darf. Deshalb entsteht im
+    Nutzerverzeichnis eine vollständige Kopie, und der Download landet dort.
+    """
+    bundle_dir = Path(bundle_dir)
+    user_dir = Path(user_dir)
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    for item in bundle_dir.rglob('*'):
+        if not item.is_file():
+            continue
+        # Die großen Gewichte werden geladen, nicht kopiert -- fehlen sie hier,
+        # ist das ja gerade der Grund für den Aufruf.
+        if item.name == 'pytorch_model.bin':
+            continue
+        destination = user_dir / item.relative_to(bundle_dir)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if not destination.exists():
+            shutil.copy2(item, destination)
+    return user_dir
+
+
 def missing_whisper_models(*search_dirs: Path) -> list:
     """Namen der Whisper-Modelle, die in keinem der Verzeichnisse liegen."""
     missing = []

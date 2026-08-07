@@ -1,5 +1,12 @@
 pt:
-  err_pyannote_weights_missing: "Os pesos para o reconhecimento de falantes estão ausentes. Baixe-os com: python scripts/fetch_models.py --skip-whisper --pyannote (é necessário um token do HuggingFace, veja o README)."
+  about_button: "Sobre"
+  about_title: "Sobre o Traudi"
+  about_version: "Versão %{v}"
+  about_close: "Fechar"
+  about_open_logs: "Registos"
+  about_open_config: "Pasta de definições"
+  about_website: "Página do projeto"
+  err_pyannote_weights_missing: "Faltam os pesos para o reconhecimento de falantes. A transcrição continua a funcionar; apenas o reconhecimento de falantes não. Para os adicionar, copie segmentation/pytorch_model.bin e embedding/pytorch_model.bin para %{dir} (consulte o README)."
   models_title: "Configurar modelo de voz"
   models_intro: "O Traudi precisa de um modelo de voz uma única vez. Ele é baixado do HuggingFace e guardado no disco."
   models_choose: "Modelo:"

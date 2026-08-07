@@ -1,0 +1,25 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+# Die Tests kommen ohne torch, ohne Modellgewichte und ohne GUI aus und laufen
+# deshalb in unter einer Minute. Der Installer-Bau bleibt bewusst ein eigener
+# Workflow -- der dauert Größenordnungen länger und soll nicht bei jedem Push
+# anspringen.
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest PyYAML python-i18n
+
+      - name: Run tests
+        run: python -m pytest tests/ -q

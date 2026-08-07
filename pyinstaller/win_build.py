@@ -22,11 +22,15 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 
 
 def app_version() -> str:
-    """Einzige Quelle der Version ist `app_version` in noScribe/main.py."""
-    source = (PROJECT_ROOT / 'noScribe' / 'main.py').read_text(encoding='utf-8')
-    match = re.search(r"^app_version\s*=\s*'([^']+)'", source, re.MULTILINE)
+    """Einzige Quelle der Version ist `__version__` in noScribe/_version.py.
+
+    Bewusst per Regex und nicht per Import: ein `import noScribe` würde über
+    das Paket-`__init__` main.py und damit torch/faster-whisper mitladen.
+    """
+    source = (PROJECT_ROOT / 'noScribe' / '_version.py').read_text(encoding='utf-8')
+    match = re.search(r'^__version__\s*=\s*"([^"]+)"', source, re.MULTILINE)
     if not match:
-        raise SystemExit('Konnte app_version nicht aus noScribe/main.py lesen.')
+        raise SystemExit('Konnte __version__ nicht aus noScribe/_version.py lesen.')
     return match.group(1)
 
 
@@ -84,6 +88,16 @@ def build_file_lists(base: Path) -> tuple:
     return '\n'.join(install_entries), '\n'.join(uninstall_entries)
 
 
+def estimated_size_kb(base: Path) -> int:
+    """Installierte Größe in KB für den Eintrag in "Apps & Features".
+
+    Windows zeigt dort sonst gar nichts an, und eine zentrale
+    Softwareverteilung kann den Platzbedarf nicht abschätzen.
+    """
+    total = sum(f.stat().st_size for f in base.rglob('*') if f.is_file())
+    return max(1, total // 1024)
+
+
 def run_nsis(dist_dir: Path, version: str, cuda: bool, nsis: Path) -> Path:
     out_dir = SCRIPT_DIR / 'win_installer'
     out_dir.mkdir(exist_ok=True)
@@ -107,10 +121,18 @@ def run_nsis(dist_dir: Path, version: str, cuda: bool, nsis: Path) -> Path:
               .replace('#*year*#', str(datetime.now().year))
               .replace('#*license_txt*#', str(PROJECT_ROOT / 'LICENSE.txt'))
               .replace('#*installer_name*#', str(installer_path))
+              .replace('#*app_icon*#', str(PROJECT_ROOT / 'img' / 'traudi_logo.ico'))
+              .replace('#*estimated_size_kb*#', str(estimated_size_kb(base)))
               .replace('#*editor_shortcut*#', editor_shortcut)
               .replace('#*editor_shortcut_delete*#', editor_delete)
               .replace('#*install_entries*#', install_entries, 1)
               .replace('#*uninstall_entries*#', uninstall_entries, 1))
+
+    # Ein vergessener Platzhalter erzeugt sonst ein .nsi, das erst makensis
+    # ablehnt -- nach dem kompletten PyInstaller-Lauf.
+    leftover = sorted(set(re.findall(r'#\*[a-z_]+\*#', script)))
+    if leftover:
+        raise SystemExit(f'Nicht ersetzte Platzhalter in der NSIS-Vorlage: {leftover}')
 
     script_path = SCRIPT_DIR / 'nsis_tmp.nsi'
     script_path.write_text(script, encoding='utf-8')
