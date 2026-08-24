@@ -1,7 +1,8 @@
 en:
+  appearance_busy: "The appearance cannot be changed while a transcription is running."
+  pyannote_skipped: "Transcription continues; the transcript will have no speaker labels."
   appearance_to_light: "Light"
   appearance_to_dark: "Dark"
-  appearance_restart: "The appearance changes the next time Traudi starts."
   about_button: "About"
   about_title: "About Traudi"
   about_version: "Version %{v}"

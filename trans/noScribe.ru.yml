@@ -1,7 +1,8 @@
 ru:
+  appearance_busy: "Оформление нельзя изменить во время выполнения расшифровки."
+  pyannote_skipped: "Расшифровка продолжается; в тексте не будет меток говорящих."
   appearance_to_light: "Светлая"
   appearance_to_dark: "Тёмная"
-  appearance_restart: "Оформление изменится при следующем запуске Traudi."
   about_button: "О прог."
   about_title: "О программе Traudi"
   about_version: "Версия %{v}"

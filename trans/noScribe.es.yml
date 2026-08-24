@@ -1,7 +1,8 @@
 es:
+  appearance_busy: "No se puede cambiar la apariencia mientras se ejecuta una transcripción."
+  pyannote_skipped: "La transcripción continúa; el transcripto no tendrá etiquetas de hablante."
   appearance_to_light: "Claro"
   appearance_to_dark: "Oscuro"
-  appearance_restart: "La apariencia cambiará la próxima vez que inicie Traudi."
   about_button: "Acerca"
   about_title: "Acerca de Traudi"
   about_version: "Versión %{v}"

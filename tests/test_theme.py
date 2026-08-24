@@ -63,6 +63,42 @@ def test_every_contract_holds_in_both_modes(palette):
     assert not failures, '\n' + '\n'.join(failures)
 
 
+def test_the_documented_exceptions_still_meet_the_legal_minimum(palette):
+    """Die Ausnahmen dürfen AAA unterschreiten, nicht aber die BITV 2.0.
+
+    Sie stehen nur deshalb in einer eigenen Liste, damit sie sichtbar bleiben —
+    aber 4,5:1 ist keine Verhandlungssache, das ist die gesetzliche
+    Anforderung für öffentliche Stellen.
+    """
+    failures = []
+    for mode_name, colours in palette.MODES.items():
+        for fg_key, bg_key, minimum, description in palette.AA_EXCEPTIONS:
+            assert minimum >= 4.5, (
+                f'{description}: eine Ausnahme darf nicht unter 4,5:1 gehen')
+            actual = contrast(colours[fg_key], colours[bg_key])
+            if actual < minimum:
+                failures.append(
+                    f'{mode_name}: {description} — {colours[fg_key]} auf '
+                    f'{colours[bg_key]} erreicht nur {actual:.2f}:1')
+    assert not failures, '\n' + '\n'.join(failures)
+
+
+def test_exceptions_do_not_quietly_duplicate_contracts(palette):
+    """Eine Kombination gehört entweder zu den Zusagen oder zu den Ausnahmen.
+
+    Stünde sie in beiden, würde die schwächere Anforderung die strengere
+    aushebeln, ohne dass es auffällt.
+    """
+    contracted = {(fg, bg) for fg, bg, _, _ in palette.CONTRACTS}
+    excepted = {(fg, bg) for fg, bg, _, _ in palette.AA_EXCEPTIONS}
+    assert not (contracted & excepted), sorted(contracted & excepted)
+
+
+def test_there_are_few_exceptions(palette):
+    """Ausnahmen sind Ausnahmen. Wachsen sie, ist der Anspruch der falsche."""
+    assert len(palette.AA_EXCEPTIONS) <= 3
+
+
 def test_both_modes_define_the_same_keys(palette):
     """Ein Schlüssel, den nur ein Modus kennt, führt im anderen zum Absturz."""
     assert set(palette.LIGHT) == set(palette.DARK)
@@ -142,8 +178,15 @@ TEXT_ON_OWN_SURFACE = (
 LABEL_ON_PARENT = ('CTkLabel', 'CTkCheckBox', 'CTkRadioButton', 'CTkSwitch')
 
 
-def test_theme_text_colours_are_readable(theme_json):
-    """Jede Textfarbe gegen die Fläche, auf der sie tatsächlich liegt."""
+def test_theme_text_colours_are_readable(theme_json, palette):
+    """Jede Textfarbe gegen die Fläche, auf der sie tatsächlich liegt.
+
+    CTkButton traegt das Wappen-Rot und faellt unter die dokumentierte
+    Ausnahme in palette.AA_EXCEPTIONS -- dort gilt 4,5:1 statt 7:1.
+    """
+    excepted_surfaces = {palette.MODES[m][bg]
+                         for m in palette.MODES
+                         for _, bg, _, _ in palette.AA_EXCEPTIONS}
     failures = []
     for widget in TEXT_ON_OWN_SURFACE:
         entries = theme_json[widget]
@@ -151,11 +194,13 @@ def test_theme_text_colours_are_readable(theme_json):
         if not isinstance(fg, list) or not isinstance(text, list):
             continue
         for index, mode_name in enumerate(('hell', 'dunkel')):
+            minimum = 4.5 if fg[index] in excepted_surfaces else 7.0
             actual = contrast(text[index], fg[index])
-            if actual < 7.0:
+            if actual < minimum:
                 failures.append(
                     f'{widget} ({mode_name}): Text {text[index]} auf '
-                    f'{fg[index]} erreicht nur {actual:.2f}:1')
+                    f'{fg[index]} erreicht nur {actual:.2f}:1, '
+                    f'verlangt sind {minimum}:1')
     assert not failures, '\n' + '\n'.join(failures)
 
 
@@ -207,8 +252,13 @@ def test_theme_file_is_generated_from_the_palette(root):
 
 # -- Der Fehler, der das alles ausgelöst hat ----------------------------
 
-TRANSPARENT_BUTTON = re.compile(
-    r'ctk\.CTkButton\((?:[^()]|\([^()]*\))*?\)', re.DOTALL)
+COLOUR_KEYWORDS = ('fg_color', 'text_color', 'hover_color', 'border_color',
+                   'progress_color', 'checkmark_color')
+
+
+def _app_source(root):
+    import ast
+    return ast.parse((root / 'noScribe' / 'main.py').read_text(encoding='utf-8'))
 
 
 def test_transparent_buttons_always_set_their_text_colour(root):
@@ -216,18 +266,115 @@ def test_transparent_buttons_always_set_their_text_colour(root):
 
     Ein `CTkButton` mit `fg_color='transparent'` sitzt auf irgendeiner Fläche
     und erbt sonst die Textfarbe der roten Hauptschaltfläche — Weiß. Auf einer
-    weissen Karte ergibt das 1,00:1, also unsichtbar.
+    hellen Karte ergibt das 1,00:1, also unsichtbar.
+
+    Zulässig ist beides: die Textfarbe direkt im Konstruktor, oder eine
+    Anmeldung über `self._themed(...)` — die setzt sie ebenfalls und sorgt
+    zusätzlich dafür, dass sie beim Moduswechsel mitzieht.
     """
+    import ast
     source = (root / 'noScribe' / 'main.py').read_text(encoding='utf-8')
+    tree = ast.parse(source)
+
+    # Welche Namen irgendwo an self._themed() übergeben werden.
+    themed = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == '_themed' and node.args):
+            target = node.args[0]
+            if isinstance(target, ast.Attribute):
+                themed.add(target.attr)
+            elif isinstance(target, ast.Name):
+                themed.add(target.id)
+            elif isinstance(target, ast.Call):
+                # self._themed(ctk.CTkButton(...)) -- direkt umschlossen.
+                themed.add(id(target))
+
     offenders = []
-    for match in TRANSPARENT_BUTTON.finditer(source):
-        call = match.group(0)
-        if "fg_color='transparent'" not in call and 'fg_color="transparent"' not in call:
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
             continue
-        if 'text_color' in call:
+        if node.func.attr != 'CTkButton':
             continue
-        line = source[:match.start()].count('\n') + 1
-        offenders.append(f'main.py:{line}')
+        keywords = {k.arg: k.value for k in node.keywords if k.arg}
+        fg = keywords.get('fg_color')
+        if not (isinstance(fg, ast.Constant) and fg.value == 'transparent'):
+            continue
+        if 'text_color' in keywords or id(node) in themed:
+            continue
+        # Andernfalls: das Ergebnis muss einem Feld zugewiesen sein, das
+        # später bei self._themed() auftaucht.
+        assigned = None
+        for parent in ast.walk(tree):
+            if isinstance(parent, ast.Assign) and parent.value is node:
+                target = parent.targets[0]
+                assigned = (target.attr if isinstance(target, ast.Attribute)
+                            else getattr(target, 'id', None))
+        if assigned in themed:
+            continue
+        offenders.append(f'main.py:{node.lineno}')
+
     assert not offenders, (
-        'Diese Schaltflächen sind transparent, legen aber keine Textfarbe '
-        'fest und erben damit Weiss: ' + ', '.join(offenders))
+        'Diese Schaltflächen sind transparent, legen keine Textfarbe fest und '
+        'sind auch nicht über self._themed() angemeldet: ' + ', '.join(offenders))
+
+
+def test_fixed_colours_are_registered_for_the_mode_switch(root):
+    """Jede fest vergebene Farbe muss beim Umschalten mitziehen.
+
+    CustomTkinter färbt nur um, was keine ausdrückliche Farbe bekommen hat.
+    Alles andere gehört über `self._themed()` angemeldet — sonst bleibt beim
+    Wechsel zwischen hell und dunkel still ein Bereich in der alten Farbe
+    stehen, und niemand merkt es, bis jemand hinschaut.
+
+    Ausgenommen sind Bereiche, die beim Umschalten ohnehin neu gebaut werden:
+    die Warteschlangen-Zeilen (`JobEntryFrame`) und die Dialoge, die bei
+    jedem Öffnen neu entstehen.
+    """
+    import ast
+    tree = _app_source(root)
+
+    # Beim Umschalten ohnehin neu gebaut -- sie lesen COLORS beim Erzeugen und
+    # entstehen danach neu, also stimmen ihre Farben von selbst.
+    rebuilt = {'JobEntryFrame', 'ModelDownloadDialog'}
+    app = next((n for n in ast.walk(tree)
+                if isinstance(n, ast.ClassDef) and n.name == 'App'), None)
+    assert app is not None, 'Klasse App nicht gefunden'
+
+    # refresh_theme setzt die Farben ja gerade -- sie darf sie benutzen.
+    exempt_methods = {'refresh_theme', '_themed'}
+    app = ast.Module(
+        body=[n for n in app.body
+              if not (isinstance(n, ast.FunctionDef) and n.name in exempt_methods)],
+        type_ignores=[])
+
+    themed_calls = {id(k.value)
+                    for node in ast.walk(app)
+                    if (isinstance(node, ast.Call)
+                        and isinstance(node.func, ast.Attribute)
+                        and node.func.attr == '_themed')
+                    for k in node.keywords if k.arg}
+
+    offenders = []
+    for node in ast.walk(app):
+        if not isinstance(node, ast.Call):
+            continue
+        # Aufrufe von self._themed() selbst sind das Ziel, nicht das Problem.
+        if isinstance(node.func, ast.Attribute) and node.func.attr in ('_themed', 'tag_config'):
+            continue
+        if isinstance(node.func, ast.Name) and node.func.id in rebuilt:
+            continue
+        for keyword in node.keywords:
+            if keyword.arg not in COLOUR_KEYWORDS:
+                continue
+            if id(keyword.value) in themed_calls:
+                continue
+            for sub in ast.walk(keyword.value):
+                if (isinstance(sub, ast.Subscript) and isinstance(sub.value, ast.Name)
+                        and sub.value.id == 'COLORS'):
+                    offenders.append(f'main.py:{node.lineno} ({keyword.arg})')
+
+    assert not offenders, (
+        'Diese Farben werden fest vergeben, aber nicht über self._themed() '
+        'angemeldet und ziehen beim Moduswechsel nicht mit: '
+        + ', '.join(sorted(set(offenders))))

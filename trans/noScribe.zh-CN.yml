@@ -1,7 +1,8 @@
 zh-CN: &defaults
+  appearance_busy: "转录进行期间无法切换外观。"
+  pyannote_skipped: "转录将继续进行，生成的文本不包含说话人标注。"
   appearance_to_light: "浅色"
   appearance_to_dark: "深色"
-  appearance_restart: "下次启动 Traudi 时将切换外观。"
   about_button: "关于"
   about_title: "关于 Traudi"
   about_version: "版本 %{v}"

@@ -54,8 +54,7 @@ from i18n import t
 from . import audio, exception, model_download, transcription, utils, whisper_args
 from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
-from .theme import (COLORS, apply_mode, danger_button, secondary_button,
-                    theme_path)
+from .theme import COLORS, apply_mode, theme_path
 from .theme.palette import DEFAULT_MODE
 from .tkHyperlinkManager import HyperlinkManager
 
@@ -842,24 +841,60 @@ class TimeEntry(ctk.CTkEntry): # special Entry box to enter time in the format h
                     if self.get()[i:i+1] != ':':
                         self.insert(i, ':')
 
-# Styling of the small icon buttons inside a queue row. They sit on the light
-# row background, so they cannot use the red primary button style.
-ROW_BTN = {
-    'fg_color': COLORS['row_btn'],
-    'hover_color': COLORS['row_btn_hover'],
-    'text_color': COLORS['black'],
-}
-ROW_BTN_DANGER = {
-    'fg_color': COLORS['red'],
-    'hover_color': COLORS['red_hover'],
-    'text_color': COLORS['white'],
-}
-
+# Die Farbanteile der vier Schaltflaechen-Stile, als Schluessel aus COLORS.
+#
+# Getrennt von den uebrigen Eigenschaften, damit refresh_theme() sie beim
+# Moduswechsel neu aufloesen kann -- ein einmal berechnetes Dict bliebe sonst
+# auf den Farben stehen, die beim Laden des Moduls galten.
+#
 # Rot ist der Hauptaktion vorbehalten, alle uebrigen Schaltflaechen tragen
 # einen Rahmen. Zerstoerende Aktionen bekommen die rote FLAECHE mit hellem
 # Text -- rote Schrift waere auf dunklem Grund nicht mehr lesbar (3,38:1).
-SECONDARY_BTN = secondary_button()
-DANGER_BTN = danger_button()
+ROW_BTN_TOKENS = {
+    'fg_color': 'row_btn',
+    'hover_color': 'row_btn_hover',
+    # 'text' und nicht 'black': im Dunkelmodus stuende sonst Dunkel auf Dunkel.
+    'text_color': 'text',
+}
+ROW_BTN_DANGER_TOKENS = {
+    'fg_color': 'primary',
+    'hover_color': 'primary_hover',
+    'text_color': 'on_primary',
+}
+SECONDARY_BTN_TOKENS = {
+    'hover_color': 'surface_hover',
+    'text_color': 'text',
+    'border_color': 'border',
+}
+DANGER_BTN_TOKENS = {
+    'fg_color': 'primary',
+    'hover_color': 'primary_hover',
+    'text_color': 'on_primary',
+}
+
+# Die fertigen Dicts. refresh_theme() fuellt sie beim Moduswechsel NEU, aber
+# an Ort und Stelle -- jedes `**SECONDARY_BTN` an einer Aufrufstelle bleibt
+# damit gueltig.
+ROW_BTN = {}
+ROW_BTN_DANGER = {}
+SECONDARY_BTN = {}
+DANGER_BTN = {}
+
+
+def rebuild_button_styles() -> None:
+    """Loest die vier Schaltflaechen-Stile gegen die aktuellen Farben auf."""
+    for target, tokens, extra in (
+            (ROW_BTN, ROW_BTN_TOKENS, {}),
+            (ROW_BTN_DANGER, ROW_BTN_DANGER_TOKENS, {}),
+            (SECONDARY_BTN, SECONDARY_BTN_TOKENS,
+             {'fg_color': 'transparent', 'border_width': 1}),
+            (DANGER_BTN, DANGER_BTN_TOKENS, {'border_width': 0})):
+        target.clear()
+        target.update({prop: COLORS[key] for prop, key in tokens.items()})
+        target.update(extra)
+
+
+rebuild_button_styles()
 
 
 class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
@@ -911,10 +946,15 @@ class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
         self.name_text = text
         self._update_progress_display()
     
-    def set_status_text(self, text, color=COLORS['status_waiting']):
-        """Set the status text and color to display"""
+    def set_status_text(self, text, color=None):
+        """Set the status text and color to display.
+
+        `color=None` statt eines Vorgabewerts aus COLORS: ein solcher würde
+        beim Laden des Moduls ausgewertet und bliebe nach einem Wechsel des
+        Erscheinungsmodus auf der alten Farbe stehen.
+        """
         self.status_text = text
-        self.status_color = color
+        self.status_color = color if color is not None else COLORS['status_waiting']
         self._update_progress_display()
     
     def bind_click(self, callback):
@@ -1167,6 +1207,9 @@ class App(ctk.CTk):
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+        # Muss vor dem ersten Widget stehen -- self._themed() traegt hier ein.
+        self._theme_bound = []
+
         _init_app_state(self)
 
         # configure window
@@ -1184,7 +1227,8 @@ class App(ctk.CTk):
             )
 
         # header
-        self.frame_header = ctk.CTkFrame(self, height=64, corner_radius=0, fg_color=COLORS['black'])
+        self.frame_header = self._themed(
+            ctk.CTkFrame(self, height=64, corner_radius=0), fg_color='black')
         self.frame_header.pack_propagate(False)
         self.frame_header.pack(padx=0, pady=0, anchor='nw', fill='x')
 
@@ -1208,44 +1252,46 @@ class App(ctk.CTk):
         self.frame_header_logo.pack(anchor='w', side='left', padx=[wordmark_padx, 20])
 
         # wordmark
-        self.logo_label = ctk.CTkLabel(self.frame_header_logo, text=t('app_name'),
-                                       font=ctk.CTkFont(size=24, weight="bold"),
-                                       text_color=COLORS['white'])
+        self.logo_label = self._themed(
+            ctk.CTkLabel(self.frame_header_logo, text=t('app_name'),
+                         font=ctk.CTkFont(size=24, weight="bold")),
+            text_color='white')
         self.logo_label.pack(pady=[10, 0], anchor='w')
 
         # sub header
-        self.header_label = ctk.CTkLabel(self.frame_header_logo, text=t('app_header'),
-                                         font=ctk.CTkFont(size=11),
-                                         text_color=COLORS['border'])
+        self.header_label = self._themed(
+            ctk.CTkLabel(self.frame_header_logo, text=t('app_header'),
+                         font=ctk.CTkFont(size=11)),
+            text_color='text_muted')
         self.header_label.pack(pady=[0, 10], anchor='w')
 
         # The state coat of arms is a protected emblem (WappG RP), so the origin
         # of the app is stated in words and by the flag colours below.
-        self.authority_label = ctk.CTkLabel(self.frame_header, text=t('app_authority'),
-                                            font=ctk.CTkFont(size=12),
-                                            text_color=COLORS['white'])
+        self.authority_label = self._themed(
+            ctk.CTkLabel(self.frame_header, text=t('app_authority'),
+                         font=ctk.CTkFont(size=12)),
+            text_color='white')
         self.authority_label.pack(anchor='e', side='right', padx=[0, 20])
 
         # Herkunft und Lizenz sind bei einer GPL-Abwandlung Pflichtangaben und
         # brauchen einen festen Platz. Auf dem dunklen Grund der Kopfzeile
         # bekommt der Knopf einen hellen Rahmen statt der üblichen Umrandung.
-        header_button = {
-            'height': 28, 'fg_color': 'transparent',
-            'hover_color': COLORS['text_muted'], 'text_color': COLORS['white'],
-            'border_width': 1, 'border_color': COLORS['text_muted'],
-        }
-        self.button_about = ctk.CTkButton(
-            self.frame_header, text=t('about_button'), width=36,
-            command=self.open_about, **header_button)
+        header_button = {'height': 28, 'fg_color': 'transparent', 'border_width': 1}
+        header_colours = {'hover_color': 'text_muted', 'text_color': 'white',
+                          'border_color': 'text_muted'}
+        self.button_about = self._themed(
+            ctk.CTkButton(self.frame_header, text=t('about_button'), width=36,
+                          command=self.open_about, **header_button),
+            **header_colours)
         self.button_about.pack(anchor='e', side='right', padx=[0, 16])
 
         # Umschalter für hell/dunkel. Beschriftet ist er mit dem Modus, in den
         # er wechselt -- nicht mit dem, der gerade gilt.
-        self.button_appearance = ctk.CTkButton(
-            self.frame_header, width=70,
-            text=t('appearance_to_light' if appearance_mode == 'dark'
-                   else 'appearance_to_dark'),
-            command=self.toggle_appearance, **header_button)
+        self.button_appearance = self._themed(
+            ctk.CTkButton(self.frame_header, width=70,
+                          text=self._appearance_label(),
+                          command=self.toggle_appearance, **header_button),
+            **header_colours)
         self.button_appearance.pack(anchor='e', side='right', padx=[0, 10])
 
         # Accent rule in the state colours. The black band is the header itself,
@@ -1253,8 +1299,10 @@ class App(ctk.CTk):
         self.frame_accent = ctk.CTkFrame(self, height=4, corner_radius=0, fg_color='transparent')
         self.frame_accent.pack_propagate(False)
         self.frame_accent.pack(padx=0, pady=0, anchor='nw', fill='x')
-        for band_color in (COLORS['red'], COLORS['gold']):
-            band = ctk.CTkFrame(self.frame_accent, height=4, corner_radius=0, fg_color=band_color)
+        for band_token in ('red', 'gold'):
+            band = self._themed(
+                ctk.CTkFrame(self.frame_accent, height=4, corner_radius=0),
+                fg_color=band_token)
             band.pack(side='left', fill='both', expand=True)
 
         # main window
@@ -1281,13 +1329,15 @@ class App(ctk.CTk):
         # sonst die Textfarbe der roten Hauptschaltflaeche -- Weiss -- und
         # stuende damit weiss auf weissem Feld (1,00:1, unlesbar).
         self.button_audio_file_name = ctk.CTkButton(self.frame_audio_file, width=200, corner_radius=8, bg_color='transparent', 
-                                                    fg_color='transparent', hover_color=COLORS['surface_hover'], 
-                                                    text_color=COLORS['text'], border_width=0, anchor='w',  
+                                                    fg_color='transparent', border_width=0, anchor='w',  
                                                     text=t('label_audio_file_name'), command=self.button_audio_file_event)
+        self._themed(self.button_audio_file_name,
+                     hover_color='surface_hover', text_color='text')
         self.button_audio_file_name.place(x=3, y=3)
 
         self.button_audio_file = ctk.CTkButton(self.frame_audio_file, width=45, height=29, text='…',
                                                command=self.button_audio_file_event, **SECONDARY_BTN)
+        self._themed(self.button_audio_file, **SECONDARY_BTN_TOKENS)
         self.button_audio_file.place(x=213, y=2)
 
         # input transcript file name
@@ -1298,13 +1348,15 @@ class App(ctk.CTk):
         self.frame_transcript_file.pack(padx=20, pady=[0,10], anchor='w')
 
         self.button_transcript_file_name = ctk.CTkButton(self.frame_transcript_file, width=200, corner_radius=8, bg_color='transparent', 
-                                                    fg_color='transparent', hover_color=COLORS['surface_hover'], 
-                                                    text_color=COLORS['text'], border_width=0, anchor='w',  
+                                                    fg_color='transparent', border_width=0, anchor='w',  
                                                     text=t('label_transcript_file_name'), command=self.button_transcript_file_event)
+        self._themed(self.button_transcript_file_name,
+                     hover_color='surface_hover', text_color='text')
         self.button_transcript_file_name.place(x=3, y=3)
 
         self.button_transcript_file = ctk.CTkButton(self.frame_transcript_file, width=45, height=29, text='…',
                                                     command=self.button_transcript_file_event, **SECONDARY_BTN)
+        self._themed(self.button_transcript_file, **SECONDARY_BTN_TOKENS)
         self.button_transcript_file.place(x=213, y=2)
 
         # Options grid: everything that is needed for a normal transcription.
@@ -1388,9 +1440,10 @@ class App(ctk.CTk):
         self.advanced_expanded = str(get_config('last_advanced_expanded', 'False')) == 'True'
 
         self.button_advanced = ctk.CTkButton(self.scrollable_options, anchor='w', height=28,
-                                             fg_color='transparent', hover_color=COLORS['bg'],
-                                             text_color=COLORS['text_muted'], border_width=0,
+                                             fg_color='transparent', border_width=0,
                                              command=self.toggle_advanced_options)
+        self._themed(self.button_advanced,
+                     hover_color='surface_hover', text_color='text_muted')
         self.button_advanced.pack(padx=20, pady=[0, 5], anchor='w', fill='x')
 
         # No pack_propagate(False) here: the frame has to grow with its rows,
@@ -1550,7 +1603,8 @@ class App(ctk.CTk):
         # ist also keine Option. Die Gliederung entsteht deshalb ueber die
         # Kontraststufe: Fließtext gedaempft, Ueberschriften voll. Beide
         # liegen ueber 7:1, es geht nur um den Unterschied zwischen beiden.
-        self.log_textbox = ctk.CTkTextbox(self.log_frame, wrap='word', state="disabled", font=("",16), text_color=COLORS['text_muted'], bg_color='transparent', fg_color='transparent')
+        self.log_textbox = ctk.CTkTextbox(self.log_frame, wrap='word', state="disabled", font=("",16), bg_color='transparent', fg_color='transparent')
+        self._themed(self.log_textbox, text_color='text_muted')
         self.log_textbox.tag_config('highlight', foreground=COLORS['text'])
         # Fehler sind eine rote Flaeche mit hellem Text, nie rote Schrift.
         self.log_textbox.tag_config('error', foreground=COLORS['on_error'], background=COLORS['error_bg'])
@@ -1567,6 +1621,7 @@ class App(ctk.CTk):
             **SECONDARY_BTN
         )
         self.log_edit_btn.pack(side='right', padx=(0, 0), pady=0)
+        self._themed(self.log_edit_btn, **SECONDARY_BTN_TOKENS)
         self.log_stop_btn = ctk.CTkButton(
             self.log_progress_frame,
             text=t('stop_button'),
@@ -1576,6 +1631,7 @@ class App(ctk.CTk):
             **DANGER_BTN
         )
         self.log_stop_btn.pack(side='right', padx=(0, 10), pady=0)
+        self._themed(self.log_stop_btn, **DANGER_BTN_TOKENS)
 
         self.log_progress_bar = ctk.CTkProgressBar(self.log_progress_frame, mode='determinate')
         self.log_progress_bar.set(0)
@@ -1602,6 +1658,7 @@ class App(ctk.CTk):
             **SECONDARY_BTN
         )
         self.queue_edit_btn.pack(side='right', padx=(0, 5), pady=5)
+        self._themed(self.queue_edit_btn, **SECONDARY_BTN_TOKENS)
 
         self.queue_stop_btn = ctk.CTkButton(
             self.queue_controls_frame,
@@ -1611,6 +1668,7 @@ class App(ctk.CTk):
             **DANGER_BTN
         )
         self.queue_stop_btn.pack(side='right', padx=(0, 10), pady=5)
+        self._themed(self.queue_stop_btn, **DANGER_BTN_TOKENS)
 
         self.queue_run_btn = ctk.CTkButton(
             self.queue_controls_frame,
@@ -2799,6 +2857,19 @@ class App(ctk.CTk):
 
                 # Start Diarization:
 
+                # Fehlende Gewichte sind ein bekannter, angekündigter Zustand --
+                # kein Defekt. Der Auftrag darf daran nicht scheitern: ein
+                # Transkript ohne Sprecherzuordnung ist ungleich mehr wert als
+                # gar keines. Echte Fehler der Sprechererkennung (Modell lädt
+                # nicht, Speicher reicht nicht) lassen den Auftrag weiterhin
+                # scheitern -- die sind unerwartet und müssen auffallen.
+                if job.speaker_detection != 'none' and resolve_pyannote_dir() is None:
+                    self.logn()
+                    self.logn(t('err_pyannote_weights_missing', dir=str(user_pyannote_dir)),
+                              'error')
+                    self.logn(t('pyannote_skipped'))
+                    job.speaker_detection = 'none'
+
                 if job.speaker_detection != 'none':
                     try:
                         job.status = JobStatus.SPEAKER_IDENTIFICATION
@@ -2806,13 +2877,6 @@ class App(ctk.CTk):
 
                         self.logn()
                         self.logn(t('start_identifying_speakers'), 'highlight')
-
-                        # Check before spending a minute on audio the pipeline
-                        # cannot load: the gated weights are fetched separately.
-                        pyannote_dir = resolve_pyannote_dir()
-                        if pyannote_dir is None:
-                            raise FileNotFoundError(
-                                t('err_pyannote_weights_missing', dir=str(user_pyannote_dir)))
 
                         self.logn(t('loading_pyannote'))
                         # self.set_progress(1, 100, job.speaker_detection)
@@ -3509,21 +3573,86 @@ class App(ctk.CTk):
 
         return diarization or []
     
-    def toggle_appearance(self):
-        """Wechselt zwischen hell und dunkel.
+    def _themed(self, widget, **tokens):
+        """Merkt sich, welche Farben ein Widget beim Erzeugen bekommen hat.
 
-        Der Wechsel greift erst beim nächsten Start. CustomTkinter könnte
-        seine eigenen Widgets zwar sofort umfärben, aber die Stellen, die am
-        ThemeManager vorbeigehen -- die auf einer tk.Canvas gezeichneten
-        Warteschlangen-Zeilen, die Text-Markierungen des Protokolls, die
-        Kurzinfos -- haben ihre Farben beim Erzeugen übernommen. Sie alle im
-        laufenden Betrieb nachzuziehen hieße, das halbe Fenster neu zu bauen;
-        das Risiko steht in keinem Verhältnis zum Gewinn.
+        CustomTkinter faerbt seine Widgets beim Moduswechsel selbst um -- aber
+        nur die, denen keine ausdrueckliche Farbe mitgegeben wurde. Alles, was
+        hier durchlaeuft, traegt eine feste Farbe und muss beim Wechsel von
+        Hand nachgezogen werden. Die Liste ist zugleich die Antwort auf die
+        Frage "haben wir eine Stelle vergessen?".
+
+        Aufruf: ``self._themed(widget, text_color='white', fg_color='black')``
+        -- die Werte sind Schluessel aus COLORS, nicht die Farben selbst.
         """
-        new_mode = 'light' if appearance_mode == 'dark' else 'dark'
-        config['appearance_mode'] = new_mode
+        self._theme_bound.append((widget, tokens))
+        widget.configure(**{prop: COLORS[key] for prop, key in tokens.items()})
+        return widget
+
+    def refresh_theme(self):
+        """Zieht alle festen Farben auf den aktuellen Modus nach."""
+        # Zuerst die Stil-Dicts, damit die neu gebauten Warteschlangen-Zeilen
+        # weiter unten schon die neuen Farben bekommen.
+        rebuild_button_styles()
+
+        for widget, tokens in list(self._theme_bound):
+            try:
+                if not widget.winfo_exists():
+                    continue
+                widget.configure(**{prop: COLORS[key] for prop, key in tokens.items()})
+            except tk.TclError:
+                # Widget wurde zwischenzeitlich zerstoert -- kein Grund, den
+                # Rest des Fensters unumgefaerbt zu lassen.
+                logger.debug('Widget beim Umfaerben verschwunden', exc_info=True)
+
+        # Die Text-Markierungen der Protokoll-Textbox gehen an CustomTkinter
+        # vorbei und muessen einzeln gesetzt werden.
+        if hasattr(self, 'log_textbox') and self.log_textbox.winfo_exists():
+            self.log_textbox.tag_config('highlight', foreground=COLORS['text'])
+            self.log_textbox.tag_config('error', foreground=COLORS['on_error'],
+                                        background=COLORS['error_bg'])
+
+        # Die Warteschlangen-Zeilen zeichnen auf einer tk.Canvas. Sie werden
+        # verworfen und neu aufgebaut -- billiger und sicherer, als jede
+        # gezeichnete Flaeche einzeln nachzuziehen.
+        for row in list(getattr(self, 'queue_row_widgets', {}).values()):
+            try:
+                row['frame'].destroy()
+            except tk.TclError:
+                pass
+        self.queue_row_widgets = {}
+        self.update_queue_table()
+
+    def _appearance_label(self) -> str:
+        """Beschriftet mit dem Modus, in den der Knopf wechselt."""
+        return t('appearance_to_light' if appearance_mode == 'dark'
+                 else 'appearance_to_dark')
+
+    def toggle_appearance(self):
+        """Wechselt sofort zwischen hell und dunkel.
+
+        CustomTkinter faerbt seine eigenen Widgets selbst um. Alles, was eine
+        ausdrueckliche Farbe bekommen hat, haengt in `self._theme_bound` und
+        wird von refresh_theme() nachgezogen -- deshalb muss jede solche
+        Stelle ueber `self._themed()` laufen.
+
+        Waehrend einer laufenden Transkription bleibt der Knopf gesperrt: die
+        Warteschlangen-Zeilen werden beim Umfaerben verworfen und neu gebaut,
+        und der Arbeits-Thread schreibt gleichzeitig hinein.
+        """
+        global appearance_mode
+        if self.queue.get_running_jobs():
+            tk.messagebox.showinfo(title=t('app_name'),
+                                   message=t('appearance_busy'))
+            return
+
+        appearance_mode = apply_mode('light' if appearance_mode == 'dark' else 'dark')
+        config['appearance_mode'] = appearance_mode
         save_config()
-        tk.messagebox.showinfo(title=t('app_name'), message=t('appearance_restart'))
+
+        ctk.set_appearance_mode(appearance_mode)
+        self.refresh_theme()
+        self.button_appearance.configure(text=self._appearance_label())
 
     def open_about(self):
         """Zeigt Version, Herkunft und Lizenz.

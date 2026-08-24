@@ -1,7 +1,8 @@
 pt:
+  appearance_busy: "Não é possível mudar o aspeto durante uma transcrição em curso."
+  pyannote_skipped: "A transcrição continua; o texto não terá identificação de falantes."
   appearance_to_light: "Claro"
   appearance_to_dark: "Escuro"
-  appearance_restart: "O aspeto muda no próximo arranque do Traudi."
   about_button: "Sobre"
   about_title: "Sobre o Traudi"
   about_version: "Versão %{v}"

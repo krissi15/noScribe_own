@@ -21,117 +21,128 @@ Zwei vollständige Sätze, hell und dunkel. Aus dieser Datei erzeugt
 dieselben Werte benutzen auch die Stellen, die am ThemeManager vorbeigehen
 (``tk.Canvas`` der Warteschlange, Text-Markierungen, Kurzinfos).
 
-**Anlass und Anspruch.** Die Erprobung von v0.7.3 brachte zwei Kontrastfehler
-zutage: der Dateiname wurde weiß auf weiß gezeichnet (1,00:1), und der
-Platzhaltertext lag bei 3,45:1. Für eine Anwendung der Justiz ist das nicht
-nur unschön -- die BITV 2.0 verlangt 4,5:1. Diese Palette zielt bewusst
-höher, auf **WCAG AAA (7:1)** für Fließtext, weil hier Menschen stundenlang
-Transkripte gegenlesen.
+**Anlass.** Die Erprobung von v0.7.3 brachte zwei Kontrastfehler zutage: der
+Dateiname wurde weiß auf weiß gezeichnet (1,00:1), und der Platzhaltertext lag
+bei 3,45:1. Für eine Anwendung der Justiz ist das nicht nur unschön -- die
+BITV 2.0 verlangt 4,5:1. Die zweite Erprobung bestätigte den Kontrast,
+bemängelte aber die Anmutung: die Grautöne wirkten „trist", Rot und Gold
+störten.
 
-**Warum das Rot dunkler wurde.** Weißer Text auf dem bisherigen Wappen-Rot
-``#DD0000`` erreicht 5,15:1 -- genug für AA, zu wenig für AAA. Die
-Hauptschaltfläche benutzt deshalb ``#B00000`` (7,38:1). Sie bleibt klar rot,
-wirkt aber etwas satter.
+**Anspruch: WCAG AAA (7:1)** für Fließtext, mit **einer** begründeten
+Ausnahme (siehe ``AA_EXCEPTIONS``). 3:1 für Begrenzungen und Fortschritt nach
+WCAG 1.4.11.
 
-**Warum Rot nie Text ist.** Auf dunklem Grund erreicht ``#DD0000`` nur
+**Warum die Grautöne einen Blaustich haben.** Vollkommen neutrale Grauwerte
+wirken tot. Ein paar Prozent Blau im Farbton ändern die Helligkeit kaum,
+lassen dieselbe Fläche aber wertiger erscheinen. Das ist der ganze Unterschied
+zwischen ``#232323`` und ``#1E2127``.
+
+**Warum Rot nie Text ist.** Auf dunklem Grund erreicht das Wappen-Rot nur
 3,38:1. Statt es aufzuhellen und damit die Wappenfarbe zu verfälschen,
 erscheint Rot ausschließlich als gefüllte Fläche mit hellem Text darauf.
 Fehler bekommen einen roten Balken, keine rote Schrift.
+
+**Warum der Fortschritt je Modus eine andere Farbe hat.** Das Wappen-Gold
+trägt auf dunklem Grund hervorragend (9,4:1), auf hellem aber überhaupt nicht
+-- gegen eine helle Bahn kommt es auf **1,18:1** und wäre praktisch unsichtbar.
+Ein Fortschrittsbalken, den man nicht sieht, ist keiner. Der helle Satz nimmt
+deshalb ein dunkles Ocker, das dieselbe Herkunft hat und sich abhebt.
 
 ``tests/test_theme.py`` prüft jede hier festgelegte Kombination nach. Wer
 Farben ändert, sieht sofort, ob sie noch tragen.
 """
 
-# Wappenfarben von Rheinland-Pfalz, unverändert als Bezugspunkt.
-# Sie sind der Ursprung der Palette, aber nicht überall direkt verwendbar --
-# siehe Modul-Beschreibung.
+# Wappenfarben von Rheinland-Pfalz als Bezugspunkt. Sie sind der Ursprung der
+# Palette, aber nicht überall direkt verwendbar -- siehe Modulbeschreibung.
 WAPPEN_ROT = '#DD0000'
 WAPPEN_GOLD = '#FFCE00'
 
 LIGHT = {
     # -- Flächen ---------------------------------------------------------
-    'bg': '#F2F2F2',            # Fensterhintergrund
+    # Leichter Blaustich statt neutraler Grauwerte.
+    'bg': '#EFF1F5',            # Fensterhintergrund
     'surface': '#FFFFFF',       # Karten, Eingabefelder, Protokoll
-    'surface_alt': '#E4E4E4',   # Zeilen der Warteschlange, nicht gewählte Reiter
-    'surface_hover': '#D6D6D6',
+    'surface_alt': '#E2E5EC',   # Warteschlangen-Zeilen, ungewählte Reiter
+    'surface_hover': '#D2D6E0',
 
     # -- Schrift ---------------------------------------------------------
-    'text': '#1A1A1A',          # 17,40:1 auf surface
-    'text_muted': '#505050',    # 8,06:1 auf surface, 7,20:1 auf bg
+    'text': '#171A21',          # 17,41:1 auf surface
+    'text_muted': '#3F4550',    # 9,64 auf surface, 8,52 auf bg, 7,64 auf alt
     # Ausgegraute Bedienelemente sind nach WCAG 1.4.3 von der
     # Kontrastanforderung ausgenommen -- sie sollen ja als "nicht benutzbar"
     # erkennbar sein.
-    'text_disabled': '#8A8A8A',
+    'text_disabled': '#8A909C',
 
     # -- Begrenzungen (WCAG 1.4.11 verlangt 3:1) -------------------------
-    'border': '#7E7E7E',        # 4,06:1 auf surface, 3,63:1 auf bg
-    'border_subtle': '#D0D0D0', # nur Dekoration, trennt keine Bedienelemente
+    'border': '#7B8291',        # 3,86 auf surface, 3,41 auf bg
+    'border_subtle': '#CFD3DC', # nur Dekoration, trennt keine Bedienelemente
 
     # -- Signalfarben ----------------------------------------------------
-    'primary': '#B00000',       # weisser Text darauf: 7,38:1
-    'primary_hover': '#8F0000',
+    # Das echte Wappen-Rot, siehe AA_EXCEPTIONS.
+    'primary': WAPPEN_ROT,      # weisser Text darauf: 5,15:1
+    'primary_hover': '#C00000',
     'on_primary': '#FFFFFF',
-    'accent': WAPPEN_GOLD,      # Fortschritt, Hervorhebung -- nie Text
-    'black': '#1A1A1A',         # Kopfzeile
+    'accent': '#96700F',        # Fortschritt: dunkles Ocker, 3,60:1 auf der Bahn
+    'black': '#171A21',         # Kopfzeile
     'white': '#FFFFFF',
 
     # -- Rueckmeldungen --------------------------------------------------
     # Fehler sind eine Flaeche mit hellem Text, nie rote Schrift.
     'error_bg': '#B00000',
     'on_error': '#FFFFFF',
-    'timestamp': '#505050',
+    'timestamp': '#3F4550',
 
     # -- Warteschlange ---------------------------------------------------
-    'row_bg': '#E4E4E4',
-    'row_btn': '#D0D0D0',
-    'row_btn_hover': '#BEBEBE',
-    'status_waiting': '#454545',   # 7,54:1 auf row_bg
-    'status_running': '#6B3A00',
-    'status_canceled': '#5C4600',
-    'status_finished': '#0C4E0C',
-    'status_error': '#8F0000',
+    'row_bg': '#E2E5EC',
+    'row_btn': '#CFD3DC',
+    'row_btn_hover': '#BCC1CD',
+    'status_waiting': '#3F4550',   # 7,64:1 auf row_bg
+    'status_running': '#5F3A00',   # 7,96:1
+    'status_canceled': '#4F4000',  # 8,06:1
+    'status_finished': '#0B5218',  # 7,45:1
+    'status_error': '#8F0000',     # 7,68:1
 }
 
 DARK = {
     # -- Flächen ---------------------------------------------------------
-    'bg': '#161616',
-    'surface': '#232323',
-    'surface_alt': '#2E2E2E',
-    'surface_hover': '#3A3A3A',
+    'bg': '#14161A',
+    'surface': '#1E2127',
+    'surface_alt': '#282C34',
+    'surface_hover': '#333844',
 
     # -- Schrift ---------------------------------------------------------
-    'text': '#F0F0F0',          # 13,90:1 auf surface
-    'text_muted': '#B4B4B4',    # 7,58:1 auf surface, 8,73:1 auf bg
-    'text_disabled': '#767676',
+    'text': '#E8EAF0',          # 13,41 auf surface, 11,64 auf alt
+    'text_muted': '#B6BDCA',    # 8,54 auf surface, 9,59 auf bg, 7,41 auf alt
+    'text_disabled': '#6E7686',
 
     # -- Begrenzungen ----------------------------------------------------
-    'border': '#7A7A7A',        # 3,66:1 auf surface, 4,22:1 auf bg
-    'border_subtle': '#3A3A3A',
+    'border': '#7A8194',        # 4,14 auf surface, 4,65 auf bg
+    'border_subtle': '#333844',
 
     # -- Signalfarben ----------------------------------------------------
     # Dasselbe Rot wie im hellen Satz: als Flaeche mit weissem Text traegt es
     # unabhaengig vom Untergrund.
-    'primary': '#B00000',
-    'primary_hover': '#8F0000',
+    'primary': WAPPEN_ROT,
+    'primary_hover': '#C00000',
     'on_primary': '#FFFFFF',
-    'accent': WAPPEN_GOLD,      # 11,67:1 auf bg -- die beste Lesbarkeit im Satz
-    'black': '#0F0F0F',         # Kopfzeile, noch etwas tiefer als der Hintergrund
-    'white': '#F0F0F0',
+    'accent': '#E8B93A',        # ruhiger als das reine Wappen-Gold, 7,62:1
+    'black': '#0E1013',         # Kopfzeile, noch etwas tiefer als der Grund
+    'white': '#E8EAF0',
 
     # -- Rueckmeldungen --------------------------------------------------
     'error_bg': '#8F0000',
     'on_error': '#FFFFFF',
-    'timestamp': '#B4B4B4',
+    'timestamp': '#B6BDCA',
 
     # -- Warteschlange ---------------------------------------------------
-    'row_bg': '#2E2E2E',
-    'row_btn': '#3A3A3A',
-    'row_btn_hover': '#4A4A4A',
-    'status_waiting': '#C2C2C2',
-    'status_running': '#FFCE00',   # Gold traegt hier am besten
-    'status_canceled': '#E2C05C',
-    'status_finished': '#7BD97B',
-    'status_error': '#FFACAC',
+    'row_bg': '#282C34',
+    'row_btn': '#333844',
+    'row_btn_hover': '#414857',
+    'status_waiting': '#B6BDCA',   # 7,41:1 auf row_bg
+    'status_running': '#E8B93A',   # 7,62:1
+    'status_canceled': '#D9C07A',  # 7,85:1
+    'status_finished': '#86D98F',  # 8,22:1
+    'status_error': '#FFB0B0',     # 8,06:1
 }
 
 MODES = {'light': LIGHT, 'dark': DARK}
@@ -142,7 +153,7 @@ DEFAULT_MODE = 'dark'
 # muessen. tests/test_theme.py arbeitet diese Liste ab.
 #
 # 7,0 = WCAG AAA fuer Fliesstext.
-# 3,0 = WCAG 1.4.11 fuer die Begrenzung von Bedienelementen.
+# 3,0 = WCAG 1.4.11 fuer Begrenzungen und Fortschrittsanzeigen.
 CONTRACTS = [
     # (Vordergrund, Hintergrund, Mindestverhaeltnis, Beschreibung)
     ('text', 'surface', 7.0, 'Fliesstext auf Karten und im Protokoll'),
@@ -150,8 +161,7 @@ CONTRACTS = [
     ('text', 'surface_alt', 7.0, 'Fliesstext auf abgesetzten Flaechen'),
     ('text_muted', 'surface', 7.0, 'Nebentext auf Karten'),
     ('text_muted', 'bg', 7.0, 'Nebentext auf dem Fensterhintergrund'),
-    ('on_primary', 'primary', 7.0, 'Beschriftung der Hauptschaltflaeche'),
-    ('on_primary', 'primary_hover', 7.0, 'Hauptschaltflaeche unter dem Zeiger'),
+    ('text_muted', 'surface_alt', 7.0, 'Nebentext auf abgesetzten Flaechen'),
     ('on_error', 'error_bg', 7.0, 'Fehlermeldung auf rotem Balken'),
     ('timestamp', 'surface', 7.0, 'Zeitmarken im Transkript'),
     ('status_waiting', 'row_bg', 7.0, 'Status "wartend" in der Warteschlange'),
@@ -159,6 +169,25 @@ CONTRACTS = [
     ('status_canceled', 'row_bg', 7.0, 'Status "abgebrochen"'),
     ('status_finished', 'row_bg', 7.0, 'Status "abgeschlossen"'),
     ('status_error', 'row_bg', 7.0, 'Status "Fehler"'),
+    ('text', 'row_btn', 7.0, 'Beschriftung der Knoepfe in einer Zeile'),
     ('border', 'surface', 3.0, 'Begrenzung von Eingabefeldern'),
     ('border', 'bg', 3.0, 'Begrenzung auf dem Fensterhintergrund'),
+    ('accent', 'surface_alt', 3.0, 'Fortschrittsbalken gegen seine Bahn'),
+]
+
+# Die einzige Stelle, an der AAA bewusst unterschritten wird.
+#
+# Fuer AAA muesste weisser Text auf Rot 7:1 erreichen, was das Rot auf
+# #B00000 zwingt -- und damit deutlich schwerer und dunkler wirken laesst als
+# das Wappen. Bei einer grossen, gefuellten Schaltflaeche ist das ein
+# schlechter Tausch: die gesetzliche Anforderung der BITV 2.0 liegt bei
+# 4,5:1, und die wird mit 5,15:1 uebertroffen.
+#
+# Ausdruecklich als Ausnahme gefuehrt, damit sie nicht stillschweigend zur
+# Regel wird. Wer eine weitere eintraegt, muss sie hier begruenden.
+AA_EXCEPTIONS = [
+    ('on_primary', 'primary', 4.5,
+     'Hauptschaltflaeche: das echte Wappen-Rot hat Vorrang vor AAA'),
+    ('on_primary', 'primary_hover', 4.5,
+     'Hauptschaltflaeche unter dem Zeiger'),
 ]

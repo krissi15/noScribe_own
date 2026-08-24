@@ -1,7 +1,8 @@
 ja:
+  appearance_busy: "文字起こしの実行中は表示を切り替えられません。"
+  pyannote_skipped: "文字起こしは続行します。話者ラベルなしの文字起こしが作成されます。"
   appearance_to_light: "ライト"
   appearance_to_dark: "ダーク"
-  appearance_restart: "次回 Traudi を起動したときに表示が切り替わります。"
   about_button: "情報"
   about_title: "Traudi について"
   about_version: "バージョン %{v}"

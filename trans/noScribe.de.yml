@@ -1,7 +1,8 @@
 de:
+  appearance_busy: "Während einer laufenden Transkription lässt sich die Ansicht nicht wechseln."
+  pyannote_skipped: "Die Transkription läuft weiter, das Transkript entsteht ohne Sprecherzuordnung."
   appearance_to_light: "Hell"
   appearance_to_dark: "Dunkel"
-  appearance_restart: "Die Ansicht wechselt beim nächsten Start von Traudi."
   about_button: "Über"
   about_title: "Über Traudi"
   about_version: "Version %{v}"

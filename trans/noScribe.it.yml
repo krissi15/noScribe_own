@@ -1,7 +1,8 @@
 it:
+  appearance_busy: "Non è possibile cambiare l’aspetto durante una trascrizione in corso."
+  pyannote_skipped: "La trascrizione prosegue; il testo non avrà l’indicazione dei parlanti."
   appearance_to_light: "Chiaro"
   appearance_to_dark: "Scuro"
-  appearance_restart: "L’aspetto cambierà al prossimo avvio di Traudi."
   about_button: "Info"
   about_title: "Informazioni su Traudi"
   about_version: "Versione %{v}"
