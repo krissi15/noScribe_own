@@ -18,8 +18,15 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
 sys.path.insert(0, str(REPO_ROOT))
 
+# Direkt aus dem Untermodul. `noScribe/__init__.py` importiert bewusst kein
+# `main` mehr -- frueher zog schon `import noScribe` die gesamte Anwendung
+# mit, und dieses Skript scheiterte mit einem ModuleNotFoundError auf
+# AdvancedHTMLParser. Ausgerechnet beim Einrichten, wo man die Gewichte
+# holt, BEVOR alles andere installiert ist.
 from noScribe.model_download import (  # noqa: E402
     PYANNOTE_MODEL,
     WHISPER_MODELS,
