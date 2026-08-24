@@ -1,4 +1,7 @@
 en:
+  appearance_to_light: "Light"
+  appearance_to_dark: "Dark"
+  appearance_restart: "The appearance changes the next time Traudi starts."
   about_button: "About"
   about_title: "About Traudi"
   about_version: "Version %{v}"

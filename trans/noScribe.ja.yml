@@ -1,4 +1,7 @@
 ja:
+  appearance_to_light: "ライト"
+  appearance_to_dark: "ダーク"
+  appearance_restart: "次回 Traudi を起動したときに表示が切り替わります。"
   about_button: "情報"
   about_title: "Traudi について"
   about_version: "バージョン %{v}"

@@ -14,57 +14,97 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Farben des Landeswappens von Rheinland-Pfalz (Schwarz, Rot, Gold, Silber).
+"""Farben für die Stellen, die am CustomTkinter-ThemeManager vorbeigehen.
 
-``rlp_justiz.json`` deckt alles ab, was CustomTkinter selbst zeichnet. Dieses
-Modul liefert dieselben Werte für die Stellen, die am ThemeManager vorbeigehen:
-``tk.Canvas`` (Queue-Fortschritt), Text-Tags der Textbox und die Tooltips.
+``rlp_justiz.json`` deckt ab, was das Framework selbst zeichnet. Dieses Modul
+liefert dieselben Werte für ``tk.Canvas`` (Fortschritt in der Warteschlange),
+die Text-Markierungen der Protokoll-Textbox und die Kurzinfos.
 
-In der Theme-Datei sind beide Einträge eines ``[hell, dunkel]``-Paares gleich,
-damit die App unabhängig vom Appearance-Mode identisch aussieht. Sie darf keine
-Kommentar-Schlüssel enthalten: der ThemeManager erwartet dort ausschließlich
-Dicts.
+Beide Quellen stammen aus ``palette.py``; die JSON wird daraus von
+``scripts/make_theme.py`` erzeugt. Farben gehören deshalb weder hierher noch
+nach ``main.py``, sondern ausschließlich in die Palette.
+
+``COLORS`` wird beim Programmstart über :func:`apply_mode` gefüllt. Das Dict
+wird dabei **an Ort und Stelle** verändert, damit ein früheres
+``from .theme import COLORS`` gültig bleibt.
 """
 
 from pathlib import Path
 
-COLORS = {
-    'red': '#DD0000',           # Wappen-Rot, nur Primäraktion
-    'red_hover': '#B00000',
-    'gold': '#FFCE00',          # Wappen-Gold, nur als Fläche
-    'black': '#1A1A1A',
-    'white': '#FFFFFF',
-    'bg': '#F2F2F2',
-    'border': '#D8D8D8',
-    'text_muted': '#5A5A5A',
-    'error': '#B00000',         # dunkleres Rot: auf Weiß kontraststark
-    'error_bg': '#FFE5E5',
-    'timestamp': '#5A5A5A',
+from .palette import DARK, DEFAULT_MODE, LIGHT, MODES
 
-    # Zeilenfarben der Warteschlange. Alle >= 4.5:1 gegen den Zeilenhintergrund
-    # #E1E1E1, deshalb durchweg abgedunkelt gegenüber den Signalfarben.
-    'row_bg': '#E1E1E1',
-    'row_btn': '#D8D8D8',
-    'row_btn_hover': '#C4C4C4',
-    'status_waiting': '#5A5A5A',
-    'status_running': '#8A4B00',
-    'status_canceled': '#7A5C00',
-    'status_finished': '#146C14',
-    'status_error': '#B00000',
+# Alte Namen, die main.py seit jeher benutzt, auf die Bedeutungen der Palette
+# abgebildet. So musste nicht der halbe Quelltext angefasst werden.
+#
+# `error` ist bewusst `on_error`: Fehler erscheinen als heller Text auf rotem
+# Balken, nie als rote Schrift. Auf dunklem Grund erreicht das Wappen-Rot nur
+# 3,38:1 und wäre als Schriftfarbe unzulässig.
+ALIASES = {
+    'red': 'primary',
+    'red_hover': 'primary_hover',
+    'gold': 'accent',
+    'error': 'on_error',
 }
 
+COLORS: dict = {}
+
+_current_mode = None
+
+
+def apply_mode(mode: str) -> str:
+    """Füllt ``COLORS`` mit dem gewählten Satz und gibt ihn zurück.
+
+    Unbekannte Werte fallen auf die Vorgabe zurück, statt die Anwendung beim
+    Start an einer verschriebenen Konfigurationszeile scheitern zu lassen.
+    """
+    global _current_mode
+    if mode not in MODES:
+        mode = DEFAULT_MODE
+    COLORS.clear()
+    COLORS.update(MODES[mode])
+    for alias, key in ALIASES.items():
+        COLORS[alias] = MODES[mode][key]
+    _current_mode = mode
+    return mode
+
+
+def current_mode() -> str:
+    return _current_mode or DEFAULT_MODE
+
+
+# Bis apply_mode() gerufen wird, gilt die Vorgabe. Ohne das wäre COLORS beim
+# Import leer und jeder Zugriff ein KeyError.
+apply_mode(DEFAULT_MODE)
+
+
 def secondary_button() -> dict:
-    """Stil für nachgeordnete Schaltflächen (heller Rahmen statt roter Fläche).
+    """Stil für nachgeordnete Schaltflächen: Rahmen statt gefüllter Fläche.
 
     Als Funktion und nicht als Konstante, damit niemand versehentlich das
-    zurückgegebene Dict verändert und damit alle anderen Knöpfe mit umfärbt.
+    zurückgegebene Dict verändert und damit alle anderen Knöpfe mit umfärbt --
+    und damit der Stil nach einem Moduswechsel neu erfragt werden kann.
     """
     return {
         'fg_color': 'transparent',
-        'hover_color': COLORS['bg'],
-        'text_color': COLORS['black'],
+        'hover_color': COLORS['surface_hover'],
+        'text_color': COLORS['text'],
         'border_width': 1,
         'border_color': COLORS['border'],
+    }
+
+
+def danger_button() -> dict:
+    """Stil für zerstörende Aktionen: gefüllte rote Fläche, heller Text.
+
+    Vorher war das ein Rahmenknopf mit **roter Schrift**. Auf dunklem Grund
+    wäre die nicht mehr lesbar gewesen, deshalb trägt jetzt die Fläche die
+    Signalwirkung.
+    """
+    return {
+        'fg_color': COLORS['primary'],
+        'hover_color': COLORS['primary_hover'],
+        'text_color': COLORS['on_primary'],
+        'border_width': 0,
     }
 
 

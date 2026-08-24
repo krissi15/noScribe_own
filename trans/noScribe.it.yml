@@ -1,4 +1,7 @@
 it:
+  appearance_to_light: "Chiaro"
+  appearance_to_dark: "Scuro"
+  appearance_restart: "L’aspetto cambierà al prossimo avvio di Traudi."
   about_button: "Info"
   about_title: "Informazioni su Traudi"
   about_version: "Versione %{v}"

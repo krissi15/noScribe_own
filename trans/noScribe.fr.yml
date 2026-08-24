@@ -1,4 +1,7 @@
 fr:
+  appearance_to_light: "Clair"
+  appearance_to_dark: "Sombre"
+  appearance_restart: "L’apparence changera au prochain démarrage de Traudi."
   about_button: "À propos"
   about_title: "À propos de Traudi"
   about_version: "Version %{v}"

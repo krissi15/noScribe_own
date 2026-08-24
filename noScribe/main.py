@@ -54,7 +54,9 @@ from i18n import t
 from . import audio, exception, model_download, transcription, utils, whisper_args
 from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
-from .theme import COLORS, secondary_button, theme_path
+from .theme import (COLORS, apply_mode, danger_button, secondary_button,
+                    theme_path)
+from .theme.palette import DEFAULT_MODE
 from .tkHyperlinkManager import HyperlinkManager
 
 if platform.system() == "Darwin": # = MAC
@@ -88,8 +90,9 @@ logger = logging.getLogger()
 app_version = __version__
 app_year = __year__
 
-ctk.set_appearance_mode('light')
 ctk.set_default_color_theme(theme_path())
+# Der Erscheinungsmodus wird erst gesetzt, sobald die Konfiguration gelesen
+# ist -- siehe weiter unten. Vorher steht nicht fest, was gewünscht ist.
 
 # Windows gruppiert Fenster in der Taskleiste nach der AppUserModelID. Ohne
 # eine eigene erbt eine Tkinter-Anwendung die des Python-Interpreters -- die
@@ -230,6 +233,14 @@ def get_config(key: str, default) -> str:
     if key not in config:
         config[key] = default
     return config[key]
+
+# Erscheinungsmodus. Muss vor dem Bau des ersten Fensters feststehen: die
+# Stellen, die am ThemeManager vorbeigehen (Warteschlangen-Zeilen auf einer
+# tk.Canvas, Text-Markierungen, Kurzinfos), lesen COLORS beim Erzeugen aus.
+# Ein Wechsel im laufenden Betrieb würde die deshalb nicht erreichen -- der
+# Einstellungsdialog weist beim Umschalten auf den Neustart hin.
+appearance_mode = apply_mode(str(get_config('appearance_mode', DEFAULT_MODE)).lower())
+ctk.set_appearance_mode(appearance_mode)
 
 force_pyannote_cpu = get_config('force_pyannote_cpu', '').lower() == 'true'
 force_whisper_cpu = get_config('force_whisper_cpu', '').lower() == 'true'
@@ -844,10 +855,11 @@ ROW_BTN_DANGER = {
     'text_color': COLORS['white'],
 }
 
-# Red is reserved for the primary action (Start), so every other button is an
-# outline button. "Cancel" only differs by its text color.
+# Rot ist der Hauptaktion vorbehalten, alle uebrigen Schaltflaechen tragen
+# einen Rahmen. Zerstoerende Aktionen bekommen die rote FLAECHE mit hellem
+# Text -- rote Schrift waere auf dunklem Grund nicht mehr lesbar (3,38:1).
 SECONDARY_BTN = secondary_button()
-DANGER_BTN = dict(SECONDARY_BTN, text_color=COLORS['error'])
+DANGER_BTN = danger_button()
 
 
 class JobEntryFrame(ctk.CTkFrame, CTkScalingBaseClass):
@@ -1101,8 +1113,11 @@ class ModelDownloadDialog(ctk.CTkToplevel):
                     self.after(700, self._on_close)
                     return
                 elif kind == 'error':
+                    # Neutrale Schrift statt roter: die Meldung selbst sagt,
+                    # dass etwas schiefging. Farbe darf ohnehin nie der einzige
+                    # Bedeutungstraeger sein (WCAG 1.4.1).
                     self.status_label.configure(text=t('models_error', e=b),
-                                                text_color=COLORS['error'])
+                                                text_color=COLORS['text'])
                     self._set_busy(False)
                     return
         except pyqueue.Empty:
@@ -1214,12 +1229,24 @@ class App(ctk.CTk):
         # Herkunft und Lizenz sind bei einer GPL-Abwandlung Pflichtangaben und
         # brauchen einen festen Platz. Auf dem dunklen Grund der Kopfzeile
         # bekommt der Knopf einen hellen Rahmen statt der üblichen Umrandung.
+        header_button = {
+            'height': 28, 'fg_color': 'transparent',
+            'hover_color': COLORS['text_muted'], 'text_color': COLORS['white'],
+            'border_width': 1, 'border_color': COLORS['text_muted'],
+        }
         self.button_about = ctk.CTkButton(
-            self.frame_header, text=t('about_button'), width=36, height=28,
-            fg_color='transparent', hover_color=COLORS['text_muted'],
-            text_color=COLORS['white'], border_width=1, border_color=COLORS['text_muted'],
-            command=self.open_about)
+            self.frame_header, text=t('about_button'), width=36,
+            command=self.open_about, **header_button)
         self.button_about.pack(anchor='e', side='right', padx=[0, 16])
+
+        # Umschalter für hell/dunkel. Beschriftet ist er mit dem Modus, in den
+        # er wechselt -- nicht mit dem, der gerade gilt.
+        self.button_appearance = ctk.CTkButton(
+            self.frame_header, width=70,
+            text=t('appearance_to_light' if appearance_mode == 'dark'
+                   else 'appearance_to_dark'),
+            command=self.toggle_appearance, **header_button)
+        self.button_appearance.pack(anchor='e', side='right', padx=[0, 10])
 
         # Accent rule in the state colours. The black band is the header itself,
         # which is why only red and gold are drawn here.
@@ -1250,9 +1277,12 @@ class App(ctk.CTk):
         self.frame_audio_file = ctk.CTkFrame(self.scrollable_options, width=260, height=33, corner_radius=6, border_width=1)
         self.frame_audio_file.pack(padx=20, pady=[0,10], anchor='w')
 
+        # text_color ist hier zwingend: eine transparente Schaltflaeche erbt
+        # sonst die Textfarbe der roten Hauptschaltflaeche -- Weiss -- und
+        # stuende damit weiss auf weissem Feld (1,00:1, unlesbar).
         self.button_audio_file_name = ctk.CTkButton(self.frame_audio_file, width=200, corner_radius=8, bg_color='transparent', 
-                                                    fg_color='transparent', hover_color=self.frame_audio_file._bg_color, 
-                                                    border_width=0, anchor='w',  
+                                                    fg_color='transparent', hover_color=COLORS['surface_hover'], 
+                                                    text_color=COLORS['text'], border_width=0, anchor='w',  
                                                     text=t('label_audio_file_name'), command=self.button_audio_file_event)
         self.button_audio_file_name.place(x=3, y=3)
 
@@ -1268,8 +1298,8 @@ class App(ctk.CTk):
         self.frame_transcript_file.pack(padx=20, pady=[0,10], anchor='w')
 
         self.button_transcript_file_name = ctk.CTkButton(self.frame_transcript_file, width=200, corner_radius=8, bg_color='transparent', 
-                                                    fg_color='transparent', hover_color=self.frame_transcript_file._bg_color, 
-                                                    border_width=0, anchor='w',  
+                                                    fg_color='transparent', hover_color=COLORS['surface_hover'], 
+                                                    text_color=COLORS['text'], border_width=0, anchor='w',  
                                                     text=t('label_transcript_file_name'), command=self.button_transcript_file_event)
         self.button_transcript_file_name.place(x=3, y=3)
 
@@ -1516,11 +1546,14 @@ class App(ctk.CTk):
 
         self.log_frame = ctk.CTkFrame(self.tab_log)
         self.log_frame.pack(padx=0, pady=0, expand=True, fill='both')
-        self.log_textbox = ctk.CTkTextbox(self.log_frame, wrap='word', state="disabled", font=("",16), text_color=COLORS['black'], bg_color='transparent', fg_color='transparent')
-        # CTkTextbox rejects a 'font' option on tags, so errors are set apart by a
-        # tinted background rather than bold type.
-        self.log_textbox.tag_config('highlight', foreground=COLORS['red'])
-        self.log_textbox.tag_config('error', foreground=COLORS['error'], background=COLORS['error_bg'])
+        # CTkTextbox laesst auf Text-Markierungen keine Schriftart zu, fett
+        # ist also keine Option. Die Gliederung entsteht deshalb ueber die
+        # Kontraststufe: Fließtext gedaempft, Ueberschriften voll. Beide
+        # liegen ueber 7:1, es geht nur um den Unterschied zwischen beiden.
+        self.log_textbox = ctk.CTkTextbox(self.log_frame, wrap='word', state="disabled", font=("",16), text_color=COLORS['text_muted'], bg_color='transparent', fg_color='transparent')
+        self.log_textbox.tag_config('highlight', foreground=COLORS['text'])
+        # Fehler sind eine rote Flaeche mit hellem Text, nie rote Schrift.
+        self.log_textbox.tag_config('error', foreground=COLORS['on_error'], background=COLORS['error_bg'])
         self.log_textbox.pack(padx=5, pady=5, expand=True, fill='both')
         self.log_len = 0
 
@@ -3476,6 +3509,22 @@ class App(ctk.CTk):
 
         return diarization or []
     
+    def toggle_appearance(self):
+        """Wechselt zwischen hell und dunkel.
+
+        Der Wechsel greift erst beim nächsten Start. CustomTkinter könnte
+        seine eigenen Widgets zwar sofort umfärben, aber die Stellen, die am
+        ThemeManager vorbeigehen -- die auf einer tk.Canvas gezeichneten
+        Warteschlangen-Zeilen, die Text-Markierungen des Protokolls, die
+        Kurzinfos -- haben ihre Farben beim Erzeugen übernommen. Sie alle im
+        laufenden Betrieb nachzuziehen hieße, das halbe Fenster neu zu bauen;
+        das Risiko steht in keinem Verhältnis zum Gewinn.
+        """
+        new_mode = 'light' if appearance_mode == 'dark' else 'dark'
+        config['appearance_mode'] = new_mode
+        save_config()
+        tk.messagebox.showinfo(title=t('app_name'), message=t('appearance_restart'))
+
     def open_about(self):
         """Zeigt Version, Herkunft und Lizenz.
 

@@ -1,4 +1,7 @@
 de:
+  appearance_to_light: "Hell"
+  appearance_to_dark: "Dunkel"
+  appearance_restart: "Die Ansicht wechselt beim nächsten Start von Traudi."
   about_button: "Über"
   about_title: "Über Traudi"
   about_version: "Version %{v}"
