@@ -4,7 +4,7 @@
 a = Analysis(
     ['noScribeEdit.py'],
     pathex=[],
-    datas=[],
+    datas=[('traudi_logo.png', '.'), ('traudi_colors.json', '.')],
     hiddenimports=['av', 'PyQt6.QtMultimedia'],
     hookspath=[],
     hooksconfig={},
@@ -31,7 +31,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['noScribeEditLogo.ico'],
+    icon=['traudi_logo.ico'],
 )
 coll = COLLECT(
     exe,
@@ -45,6 +45,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='noScribeEdit.app',
-    icon='noScribeEditLogo.ico',
+    icon='traudi_logo.ico',
     bundle_identifier='org.noScribeEditor.noScribeEditor',
 )

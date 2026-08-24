@@ -54,8 +54,19 @@ model_dir_marker('precise'),
 ('../README.md', '.')]
 
 # The editor lives in a separate repository and may not be checked out.
-if os.path.isdir(os.path.join(project_root, 'noScribeEdit')):
-    noScribe_datas += [('../noScribeEdit/', './noScribeEdit/')]
+# Der Editor wird VOR diesem Lauf gebaut (win_build.py, build_editor()) und
+# liegt dann als fertiges Programm unter pyinstaller/dist/editor/noScribeEdit.
+#
+# Frueher wurde hier das QUELLVERZEICHNIS eingebunden, waehrend win_build.py
+# und main.py eine gebaute noScribeEdit.exe an dieser Stelle erwarteten. Das
+# passte nur zusammen, wenn jemand vorher von Hand gebaut hatte -- sonst fehlte
+# der Editor im Installer, ohne dass es auffiel.
+_editor_dist = os.path.join(SPECPATH, 'dist', 'editor', 'noScribeEdit')
+if os.path.isdir(_editor_dist):
+    noScribe_datas += [(_editor_dist, './noScribeEdit/')]
+else:
+    print('HINWEIS: Editor nicht gebaut, der Installer kommt ohne ihn. '
+          'Mit `python pyinstaller/win_build.py` wird er mitgebaut.')
 noScribe_datas += collect_data_files('customtkinter')
 noScribe_datas += copy_metadata('AdvancedHTMLParser')
 noScribe_datas += collect_data_files('faster_whisper')

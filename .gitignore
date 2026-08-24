@@ -4,8 +4,13 @@ dist/
 src/
 __pycache__/
 .vscode/
-noScribeEdit/*
-!noScribeEdit/readme.txt
+
+# Frueher stand hier `noScribeEdit/*`: der Editor lag in einem eigenen
+# Repository und wurde nur danebengelegt. Seit er als git-subtree Teil dieses
+# Repositorys ist, gehoert er versioniert -- die Zeile haette neue Dateien
+# dort stillschweigend nie eingecheckt.
+noScribeEdit/build/
+noScribeEdit/dist/
 
 *.code-workspace
 auto-py-to-exe*.*

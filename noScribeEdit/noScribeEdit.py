@@ -33,24 +33,55 @@ from PyQt6 import QtGui
 from PyQt6 import QtWidgets
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from search_and_replace_dialog import SearchAndReplaceDialog
+from speaker_dialog import SpeakerRenameDialog, apply_renames, collect_speakers
+import traudi_theme
 import re
 import unicodedata
 
 app_dir = os.path.abspath(os.path.dirname(__file__))
 
-icon_color = '#aaaaaa'
-highlight_color = '#ff8c00'
+app_name = "Traudi Editor"
+
 default_font = "Arial"
 default_font_size = "12pt"
 
 # Helper functions
 
 # config
-config_dir = appdirs.user_config_dir('noScribe')
+# Dasselbe Verzeichnis wie Traudi: der Editor liest von dort, in welchem
+# Modus gearbeitet wird. Zwei Programme, die zusammengehoeren, sollen nicht
+# in unterschiedlichen Farben aufgehen.
+config_dir = appdirs.user_config_dir('Traudi')
 if not os.path.exists(config_dir):
     os.makedirs(config_dir)
 
 config_file = os.path.join(config_dir, 'editor_config.yaml')
+main_config_file = os.path.join(config_dir, 'config.yml')
+
+
+def appearance_mode():
+    """Hell oder dunkel -- die Einstellung gehoert Traudi, nicht dem Editor.
+
+    Faellt Traudis Konfiguration aus (erster Start, beschaedigte Datei), gilt
+    die Vorgabe aus der Palette.
+    """
+    try:
+        with open(main_config_file, 'r', encoding='utf-8') as file:
+            main_config = yaml.safe_load(file) or {}
+        mode = str(main_config.get('appearance_mode', '')).lower()
+        if mode in traudi_theme.MODES:
+            return mode
+    except Exception:
+        pass
+    return traudi_theme.DEFAULT_MODE
+
+
+colors = traudi_theme.colors_for(appearance_mode())
+
+# Die Symbole der Werkzeugleiste tragen die Textfarbe des Modus. Fest
+# verdrahtetes #aaaaaa war auf hellem Grund kaum zu sehen (2,3:1).
+icon_color = colors['text_muted']
+highlight_color = colors['accent']
 
 try:
     with open(config_file, 'r') as file:
@@ -234,7 +265,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tmp_audio_file = None
         self.tmpdir = None
         self.audio_decode_error_count = 0
-        self.keep_playing = False # Stops the play_along-function when set to False 
+        self.keep_playing = False # Stops the play_along-function when set to False
+
+        # Wiedergabe laeuft ueber einen Timer, nicht ueber eine Schleife mit
+        # processEvents(). Die alte Schleife blockierte den Slot, solange
+        # gespielt wurde -- deshalb konnte ein Klick ins Transkript nur eines
+        # bewirken: die Wiedergabe anhalten. Springen war unmoeglich.
+        self.playback_timer = QtCore.QTimer(self)
+        self.playback_timer.setInterval(50)
+        self.playback_timer.timeout.connect(self._playback_tick)
+        self.playback_rate = 100
+        self.segment_start = -1      # Zeitmarke des markierten Segments, in ms
+        self.segment_stop = -1
+        self.segment_text_pos = 0    # wo dieses Segment im Dokument steht
+        self.playing_ts = ''         # anchorHref des markierten Segments
+        self.resume_pos = 0          # Stelle, an der zuletzt angehalten wurde
+        self._search_selections = [] # Treffer der Suche
+        self._segment_selection = [] # die mitlaufende Zeilenmarkierung
         self.ignore_cursor_change = False
         self.media_error_message = None
         self.media_status = QMediaPlayer.MediaStatus.NoMedia
@@ -250,9 +297,8 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Editor:        
         self.editor = QtWidgets.QTextEdit()
-        palette = self.palette()
-        default_background_color = palette.color(palette.ColorRole.Button)
-        self.editor.setStyleSheet("QTextEdit {color: #000000; background-color: #ffffff; border: 0px;} QScrollBar::handle {background: " + default_background_color.name() + "}")
+        # Die Farben kommen aus dem Stylesheet der Anwendung (traudi_theme),
+        # nicht mehr fest verdrahtet aus #000000 auf #ffffff.
         self.editor.setAcceptRichText(True)
         self.editor.setAutoFormatting(QtWidgets.QTextEdit.AutoFormattingFlag.AutoNone)
         self.editor.cursorPositionChanged.connect(self.cursor_changed)
@@ -263,16 +309,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editor.setFont(font)
         layout.addWidget(self.editor)
         container = QtWidgets.QWidget()
-        container.setStyleSheet("background-color: #ffffff;")
         container.setLayout(layout)
         self.setCentralWidget(container)
 
         # Status Bar
         self.status = QtWidgets.QStatusBar()
-        self.status.setStyleSheet("border: 0px")
+        self.status.setStyleSheet("border: 0px")  # Farben siehe traudi_theme
         self.timestamp_status = QtWidgets.QLabel('')
         self.timestamp_status.setMinimumWidth(130)
-        self.timestamp_status.setStyleSheet("border-left: 2px solid #474747; ")
+        self.timestamp_status.setStyleSheet(
+            "border-left: 2px solid " + colors['border_subtle'] + "; ")
         self.timestamp_status.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.status.addPermanentWidget(self.timestamp_status)
         self.setStatusBar(self.status)
@@ -343,6 +389,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.playback_speed.setToolTip("Playback speed")
         self.playback_speed.setStatusTip("Set playback speed")
         noScribe_toolbar.addWidget(self.playback_speed)
+
+        self.rename_speakers_action = QtGui.QAction(
+            qta.icon('mdi.account-edit', color=icon_color), "Sprecher...", self)
+        self.rename_speakers_action.setStatusTip(
+            "Sprecherkennungen im ganzen Transkript durch Namen ersetzen")
+        self.rename_speakers_action.setShortcut(QtGui.QKeySequence('Ctrl+Shift+S'))
+        self.rename_speakers_action.triggered.connect(self.rename_speakers)
+        noScribe_toolbar.addAction(self.rename_speakers_action)
+        file_menu.addAction(self.rename_speakers_action)
             
         edit_toolbar = QtWidgets.QToolBar("Edit")
         edit_toolbar.setMovable(False)
@@ -510,7 +565,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Initialize
         self.cursor_changed()
         self.update_title()
-        self.setWindowIcon(QtGui.QIcon(os.path.join(app_dir, 'noScribeEditLogo.png')))
+        self.setWindowIcon(QtGui.QIcon(os.path.join(app_dir, 'traudi_logo.png')))
 
         # make the window at least 700 x 900
         if self.height() < 700:
@@ -537,7 +592,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.timestamp_status.setText('')
         else:
             if not self.ignore_cursor_change:
-                self.keep_playing = False # stop playing if user moves the cursor
+                # Waehrend der Wiedergabe: springen statt anhalten.
+                self._seek_to_cursor()
         
         # Update the font format toolbar/actions when a new text selection is made. This is neccessary to keep
         # toolbars/etc. in sync with the current edit state.
@@ -594,6 +650,10 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg.show()
 
     def _file_open(self, path):
+        # Ein anderes Transkript heisst: die Markierung des vorigen ist
+        # gegenstandslos, und fortgesetzt wird auch nichts mehr.
+        self._stop_playback()
+        self._clear_segment_mark()
         try:
             try:
                 with open(path, 'r', encoding="utf-8") as f:
@@ -612,7 +672,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status.showMessage("Loading... please wait.")
             # avoid that all anchors become formatted as underlined and blue 
             doc = self.editor.document()
-            doc.setDefaultStyleSheet("a {color: #000000; text-decoration: none; }")
+            # Das gesamte Transkript steht in Ankern (ts_...). Fest auf
+            # #000000 gesetzt war es im Dunkelmodus schwarz auf dunkelgrau.
+            doc.setDefaultStyleSheet(
+                "a {color: " + colors['text'] + "; text-decoration: none; }")
             # reset the font:
             font_size = self.editor.font().pointSize()
             font = QtGui.QFont(default_font, font_size, QtGui.QFont.Weight.Normal, False)
@@ -622,6 +685,11 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # QTextEdit does not understand "font-size: 0.8em", only "small":
             htmlStr = htmlStr.replace('font-size: 0.8em', 'font-size: small')
+
+            # Die Zeitmarken tragen die Farbe, die beim Transkribieren galt.
+            # Ein im Dunkelmodus erzeugtes Transkript brachte im hellen
+            # Editor hellgraue Zeitmarken auf Weiss mit -- rund 2:1.
+            htmlStr = traudi_theme.recolor_timestamps(htmlStr, colors['timestamp'])
             
             parser = AdvancedHTMLParser.AdvancedHTMLParser()
             parser.parseStr(htmlStr)    
@@ -637,7 +705,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 # get path to audio source from html:
                 tags = parser.head.getElementsByName("audio_source")
                 if (len(tags) == 0) or (not os.path.exists(tags[0].content)): # audio source moved or missing
-                    ret = QtWidgets.QMessageBox.warning(self, "noScribeEdit", 
+                    ret = QtWidgets.QMessageBox.warning(self, app_name, 
                                                 "Audio source file not found.\n"
                                                 "Do you want to search for it?",
                                                 QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel, 
@@ -751,7 +819,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def file_open(self):
         if self.editor.document().isModified():
-            ret = QtWidgets.QMessageBox.warning(self, "noScribeEdit", 
+            ret = QtWidgets.QMessageBox.warning(self, app_name, 
                                                 "The document has been modified.\n"
                                                 "Do you want to save your changes?",
                                                 QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard
@@ -887,43 +955,61 @@ class MainWindow(QtWidgets.QMainWindow):
             self.editor.document().setModified(True)            
             return ret
 
+    def _segment_bounds(self, position=None):
+        """Anfang, Ende und Zeitmarke des Segments an `position`.
+
+        Arbeitet auf einem eigenen Cursor. Waehrend der Wiedergabe darf der
+        Schreibcursor nicht wandern -- sonst kann waehrenddessen niemand
+        tippen, und genau das ist der Zweck eines Transkript-Editors.
+
+        Rueckgabe (von, bis, zeitmarke), oder (-1, -1, '') wenn dort kein
+        Segment mit gueltiger Zeitmarke liegt.
+        """
+        doc = self.editor.document()
+        if position is None:
+            position = self.editor.textCursor().position()
+
+        probe = QtGui.QTextCursor(doc)
+        probe.setPosition(position)
+        ts = probe.charFormat().anchorHref()
+        if ts == '':
+            return -1, -1, ''
+        try:
+            decode_timestamp(ts)
+        except Exception:
+            return -1, -1, ''
+
+        # nach links, solange dieselbe Zeitmarke gilt
+        first = position
+        probe.setPosition(position)
+        while probe.movePosition(QtGui.QTextCursor.MoveOperation.Left,
+                                 QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
+            if probe.charFormat().anchorHref() == ts:
+                first = probe.position()
+            else:
+                break
+
+        # und nach rechts
+        last = position
+        probe.setPosition(position)
+        while probe.movePosition(QtGui.QTextCursor.MoveOperation.Right,
+                                 QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
+            if probe.charFormat().anchorHref() == ts:
+                last = probe.position()
+            else:
+                break
+
+        return first, last, ts
+
     def select_current_segment(self):
-        # Expands the selection so that it includes the whole transcript segment with the current timestamp
-        # Returns False if no timestamp is found, True if succesful   
-        
-        cr = self.editor.textCursor()
-        cr.clearSelection()
-        ts = cr.charFormat().anchorHref()
+        # Expands the selection so that it includes the whole transcript segment
+        # with the current timestamp. Returns False if no timestamp is found.
+        first, last, ts = self._segment_bounds()
         if ts == '':
             return False
-        else:
-            try:
-                decode_timestamp(ts)
-            except:
-                return False # no valid timestamp
-        
-        # move to the left until the beginning of the segment is reached 
-        chars_left = 0
-        while cr.movePosition(QtGui.QTextCursor.MoveOperation.Left, QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
-            if cr.charFormat().anchorHref() == ts: 
-                chars_left += 1
-            else:
-                break
-                
-        # move to the right until the end of the segment is reached 
-        cr = self.editor.textCursor()
-        cr.clearSelection()
-        chars_right = 0
-        while cr.movePosition(QtGui.QTextCursor.MoveOperation.Right, QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
-            if cr.charFormat().anchorHref() == ts: 
-                chars_right += 1
-            else:
-                break
-        
         seg = self.editor.textCursor()
-        seg.clearSelection()
-        seg.movePosition(QtGui.QTextCursor.MoveOperation.Left, QtGui.QTextCursor.MoveMode.MoveAnchor, chars_left)
-        seg.movePosition(QtGui.QTextCursor.MoveOperation.Right, QtGui.QTextCursor.MoveMode.KeepAnchor, chars_left + chars_right)
+        seg.setPosition(first)
+        seg.setPosition(last, QtGui.QTextCursor.MoveMode.KeepAnchor)
         self._set_editor_cursor(seg, ignore_during_playback=True)
         return True
 
@@ -936,99 +1022,152 @@ class MainWindow(QtWidgets.QMainWindow):
         finally:
             if ignore_during_playback:
                 self.ignore_cursor_change = False
-    
-    def find_segment(self, a_time, search_dir="right", skip_current=False):
-        # goes through the text in the given direction starting from the current selection  
-        # and stops when a timestamp is found that includes a_time. The found segment is selected.
-        # If a_time is None, the function looks for the first segment with any valid timestamp. 
-        # Returns start, stop if found, -1, -1 otherwise
-        cr = self.editor.textCursor()
-        cr.clearSelection()
+
+    def _apply_extra_selections(self):
+        """Suchtreffer und Zeilenmarkierung teilen sich eine Qt-Liste.
+
+        Frueher setzte die Suche `setExtraSelections` einfach neu -- eine
+        zweite Markierung haette die erste jedes Mal geloescht.
+        """
+        self.editor.setExtraSelections(self._search_selections + self._segment_selection)
+
+    def _mark_segment(self, position):
+        """Hebt das Segment an `position` hervor und scrollt es in den Blick.
+
+        Bewusst ueber `ExtraSelection` statt ueber eine Textauswahl: eine
+        Auswahl wuerde beim ersten Tastendruck den ganzen Absatz ersetzen.
+        """
+        first, last, ts = self._segment_bounds(position)
+        self.playing_ts = ts
+        if ts == '':
+            self._segment_selection = []
+            self._apply_extra_selections()
+            return
+
+        self.segment_text_pos = last
+
+        fmt = QtGui.QTextCharFormat()
+        fmt.setBackground(QtGui.QBrush(QtGui.QColor(colors['playback_line'])))
+        fmt.setForeground(QtGui.QBrush(QtGui.QColor(colors['playback_line_text'])))
+
+        cur = QtGui.QTextCursor(self.editor.document())
+        cur.setPosition(first)
+        cur.setPosition(last, QtGui.QTextCursor.MoveMode.KeepAnchor)
+
+        selection = QtWidgets.QTextEdit.ExtraSelection()
+        selection.format = fmt
+        selection.cursor = cur
+        self._segment_selection = [selection]
+        self._apply_extra_selections()
+        self._scroll_into_view(first)
+
+    def _scroll_into_view(self, position):
+        """Mitscrollen, ohne den Schreibcursor anzufassen.
+
+        `ensureCursorVisible()` bezoege sich auf den Schreibcursor -- der steht
+        aber dort, wo gerade jemand tippt, nicht bei der Wiedergabe.
+        """
+        cur = QtGui.QTextCursor(self.editor.document())
+        cur.setPosition(position)
+        rect = self.editor.cursorRect(cur)
+        height = self.editor.viewport().height()
+        if 0 <= rect.top() and rect.bottom() <= height:
+            return # schon sichtbar, dann bleibt das Bild ruhig
+        bar = self.editor.verticalScrollBar()
+        bar.setValue(bar.value() + rect.top() - height // 3)
+
+    def find_segment(self, a_time, from_pos=None, search_dir="right", skip_current=False):
+        # goes through the text in the given direction starting from from_pos
+        # and stops when a timestamp is found that includes a_time.
+        # If a_time is None, the function looks for the first segment with any valid timestamp.
+        # Returns start, stop, position if found, -1, -1, -1 otherwise.
+        #
+        # Sucht auf einem eigenen Cursor und markiert nichts -- was gefunden
+        # wurde, entscheidet die aufrufende Stelle.
+        doc = self.editor.document()
+        cr = QtGui.QTextCursor(doc)
+        cr.setPosition(self.editor.textCursor().position() if from_pos is None else from_pos)
 
         if skip_current:
             if search_dir == "right":
-                if not cr.movePosition(QtGui.QTextCursor.MoveOperation.Right, QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
-                    return -1, -1
+                if not cr.movePosition(QtGui.QTextCursor.MoveOperation.Right,
+                                       QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
+                    return -1, -1, -1
             elif search_dir == "left":
-                if not cr.movePosition(QtGui.QTextCursor.MoveOperation.Left, QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
-                    return -1, -1
+                if not cr.movePosition(QtGui.QTextCursor.MoveOperation.Left,
+                                       QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
+                    return -1, -1, -1
 
-        cf = cr.charFormat()
-        ts = cf.anchorHref()
-        if ts != '':
-            start, stop = decode_timestamp(ts)
-        else:
-            start = -1 
-            stop = -1
+        def timestamp_here():
+            ts = cr.charFormat().anchorHref()
+            if ts == '':
+                return -1, -1
+            try:
+                return decode_timestamp(ts)
+            except Exception:
+                return -1, -1
 
-        while (a_time == None and start == -1) or (a_time != None and not((a_time >= start) and (a_time <= stop))):
+        start, stop = timestamp_here()
+
+        while (a_time is None and start == -1) or \
+              (a_time is not None and not ((a_time >= start) and (a_time <= stop))):
             if search_dir == "right":
-                if not cr.movePosition(QtGui.QTextCursor.MoveOperation.Right, QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
+                if not cr.movePosition(QtGui.QTextCursor.MoveOperation.Right,
+                                       QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
                     break # stop when cursor cannot be moved anymore (EOF)
             elif search_dir == "left":
-                if not cr.movePosition(QtGui.QTextCursor.MoveOperation.Left, QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
+                if not cr.movePosition(QtGui.QTextCursor.MoveOperation.Left,
+                                       QtGui.QTextCursor.MoveMode.MoveAnchor, 1):
                     break
-            cf = cr.charFormat()
-            ts = cf.anchorHref()
-            if ts != '':
-                start, stop = decode_timestamp(ts)
-            else:
-                start = -1
-                stop = -1
-        if (a_time == None and start > -1) or (a_time != None and (a_time >= start) and (a_time <= stop)): # found, select the whole segment
-            self._set_editor_cursor(cr, ignore_during_playback=True)
-            if self.select_current_segment():
-                return start, stop
-            else:
-                return -1, -1
-        else:
-            return -1, -1    
-               
+            start, stop = timestamp_here()
+
+        found = (a_time is None and start > -1) or \
+                (a_time is not None and (a_time >= start) and (a_time <= stop))
+        if found:
+            return start, stop, cr.position()
+        return -1, -1, -1
+
     def play_along(self):
         if self.keep_playing: # function already running, stop it
             self._stop_playback()
             return
-        
+
         try:
             if not self.tmp_audio_file or not os.path.exists(self.tmp_audio_file): # audio source moved or missing
-                ret = QtWidgets.QMessageBox.warning(self, "noScribeEdit", 
+                ret = QtWidgets.QMessageBox.warning(self, app_name,
                                             "Audio source file not found.\n"
                                             "Do you want to search for it?",
-                                            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel, 
+                                            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
                                             QtWidgets.QMessageBox.Ok)
                 if ret == QtWidgets.QMessageBox.Cancel:
                     return
                 else:
                     if not self.open_audio_source():
                         return
-                        
-            cr = self.editor.textCursor()
-            cf = cr.charFormat()
-            ts = cf.anchorHref()
-                
-            try:
-                start, stop = decode_timestamp(ts)
-            except:
-                ret = QtWidgets.QMessageBox.warning(self, "noScribeEdit", 
+
+            first, last, ts = self._segment_bounds()
+
+            # Fortsetzen, wo zuletzt angehalten wurde -- aber nur, solange
+            # niemand seither woandershin geklickt hat. Sonst gilt der Klick.
+            resume = (self.playing_ts != '' and ts == self.playing_ts and self.resume_pos > 0)
+
+            if ts == '':
+                ret = QtWidgets.QMessageBox.warning(self, app_name,
                                     "No audio timestamp found for current selection.\n"
                                     "Do you want to start from the beginning?",
-                                    QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel, 
+                                    QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
                                     QtWidgets.QMessageBox.Ok)
                 if ret == QtWidgets.QMessageBox.Cancel:
                     return
-                else:
-                    # move to the beginning
-                    cr = self.editor.textCursor()
-                    cr.setPosition(0)
-                    self.editor.setTextCursor(cr)
-                    # search first segment
-                    start, stop = self.find_segment(None)
-                    if start == -1:
-                        raise Exception("No audio timestamps found in this document.")
+                start, stop, pos = self.find_segment(None, from_pos=0)
+                if start == -1:
+                    raise Exception("No audio timestamps found in this document.")
+                resume = False
+            else:
+                start, stop = decode_timestamp(ts)
+                pos = last
 
-            if not self.select_current_segment():
-                raise Exception("No audio timestamps found in current selection.")
-            speed = int(self.playback_speed.currentText()[:-1])
+            self.playback_rate = int(self.playback_speed.currentText()[:-1])
 
             self._ensure_media_player()
             self._clear_media_error()
@@ -1039,64 +1178,134 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._wait_for_media_loaded()
 
             self._enable_pitch_compensation_if_available()
-            self.media_player.setPlaybackRate(speed / 100.0)
-            self.media_player.setPosition(start)
-            self.keep_playing = True
+            self.media_player.setPlaybackRate(self.playback_rate / 100.0)
+            self.media_player.setPosition(self.resume_pos if resume else start)
 
-            self.play_along_action.blockSignals(True) 
+            self.segment_start = start
+            self.segment_stop = stop
+            self.keep_playing = True
+            self._mark_segment(pos)
+
+            self.play_along_action.blockSignals(True)
             self.play_along_action.setChecked(True)
             self.play_along_action.blockSignals(False)
 
             self.media_player.play()
             self._wait_for_playback_start()
-                    
-            while self.keep_playing:
-                self._check_media_error("Audio playback failed.")
-                if self.media_player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
-                        break
+            self.playback_timer.start()
 
-                curr_audio_pos = self.media_player.position()
-                
-                new_speed = int(self.playback_speed.currentText()[:-1])
-                if new_speed != speed: # user changed playback speed
-                    speed = new_speed
-                    self.media_player.setPlaybackRate(speed / 100.0)
-
-                if curr_audio_pos > stop: # go to next segment in transcript
-                    try:
-                        new_start, new_stop = self.find_segment(curr_audio_pos)
-                        if new_start == -1:
-                            new_start, new_stop = self.find_segment(None, skip_current=True)
-                        if new_start > -1: #found
-                            start = new_start
-                            stop = new_stop
-                        else:
-                            # no segment found, deselect all
-                            cr = self.editor.textCursor()
-                            cr.clearSelection()
-                            self._set_editor_cursor(cr, ignore_during_playback=True)
-                            self.keep_playing = False
-                    except:
-                        self.keep_playing = False # stop playing along  
-                QtCore.QThread.msleep(10)
-                self.play_along_action.blockSignals(True) 
-                self.play_along_action.setChecked(self.keep_playing)
-                self.play_along_action.blockSignals(False)
-                self.timestamp_status.setText('♪ ' + ms_to_str(curr_audio_pos))
-                QtWidgets.QApplication.processEvents() # update GUI
-        
         except Exception as e:
-            self.dialog_critical(str(e))
-        
-        finally:
             self._stop_playback()
-            self.cursor_changed()           
+            self.dialog_critical(str(e))
+
+    def _playback_tick(self):
+        """Ein Schritt der Wiedergabe: Stand anzeigen, Segment weiterschalten.
+
+        Das war frueher der Rumpf einer `while`-Schleife mit
+        `processEvents()`. Als Timer-Aufruf laeuft die Ereignisschleife
+        normal weiter -- erst dadurch kann ein Klick etwas anderes bewirken
+        als das Anhalten der Wiedergabe.
+        """
+        if not self.keep_playing:
+            self.playback_timer.stop()
+            return
+
+        try:
+            self._check_media_error("Audio playback failed.")
+
+            if self.media_player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
+                self._stop_playback()
+                self.cursor_changed()
+                return
+
+            curr_audio_pos = self.media_player.position()
+
+            new_speed = int(self.playback_speed.currentText()[:-1])
+            if new_speed != self.playback_rate: # user changed playback speed
+                self.playback_rate = new_speed
+                self.media_player.setPlaybackRate(new_speed / 100.0)
+
+            if curr_audio_pos > self.segment_stop: # go to next segment in transcript
+                start, stop, pos = self.find_segment(curr_audio_pos,
+                                                     from_pos=self.segment_text_pos)
+                if start == -1:
+                    start, stop, pos = self.find_segment(None,
+                                                         from_pos=self.segment_text_pos,
+                                                         skip_current=True)
+                if start > -1:
+                    self.segment_start = start
+                    self.segment_stop = stop
+                    self._mark_segment(pos)
+                else:
+                    # hinter dem letzten Segment: Markierung weg, Ton aus
+                    self._clear_segment_mark()
+                    self._stop_playback()
+                    self.cursor_changed()
+                    return
+
+            self.timestamp_status.setText('\u266a ' + ms_to_str(curr_audio_pos))
+
+        except Exception as e:
+            self._stop_playback()
+            self.dialog_critical(str(e))
+
+    def _seek_to_cursor(self):
+        """Ein Klick ins Transkript springt in der Aufnahme an diese Stelle.
+
+        Frueher hielt jede Cursorbewegung die Wiedergabe an -- wer beim
+        Hoeren etwas verbessern wollte, musste danach von Hand neu starten.
+
+        Nur bei einem Wechsel des Segments: sonst wuerde jeder Tastendruck
+        beim Korrigieren an den Anfang der Zeile zurueckspringen.
+        """
+        first, last, ts = self._segment_bounds()
+        if ts == '' or ts == self.playing_ts:
+            return
+        try:
+            start, stop = decode_timestamp(ts)
+        except Exception:
+            return
+
+        self.segment_start = start
+        self.segment_stop = stop
+        self.media_player.setPosition(start)
+        self._mark_segment(last)
+
+    def _clear_segment_mark(self):
+        self._segment_selection = []
+        self.playing_ts = ''
+        self.resume_pos = 0
+        self._apply_extra_selections()
+
+    def rename_speakers(self):
+        """Sprecherkennungen (S01, S02, ...) durch Namen ersetzen."""
+        speakers = collect_speakers(self.editor.document())
+        if not speakers:
+            QtWidgets.QMessageBox.information(
+                self, app_name,
+                "In diesem Transkript wurden keine Sprecherangaben gefunden.\n\n"
+                "Sprecherangaben stehen am Anfang eines Absatzes und enden "
+                "auf einem Doppelpunkt. Sie entstehen nur, wenn beim "
+                "Transkribieren die Sprechererkennung eingeschaltet war.")
+            return
+
+        dialog = SpeakerRenameDialog(self, speakers)
+        if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+
+        mapping = dialog.renames()
+        if not mapping:
+            return
+
+        changed = apply_renames(self.editor.document(), mapping)
+        self.editor.document().setModified(True)
+        self.status.showMessage(f'{changed} Sprecherangaben geaendert.', 5000)
 
     def closeEvent(self, event):
         self._stop_playback()
                     
         if self.editor.document().isModified():
-            ret = QtWidgets.QMessageBox.warning(self, "noScribeEdit", 
+            ret = QtWidgets.QMessageBox.warning(self, app_name, 
                                                 "The document has been modified.\n"
                                                 "Do you want to save your changes?",
                                                 QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard
@@ -1124,7 +1333,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def _stop_playback(self):
         """Stop active playback and sync the play-along action state."""
         self.keep_playing = False
+        self.playback_timer.stop()
         if self.media_player is not None:
+            # Stand merken, BEVOR stop() ihn auf 0 zuruecksetzt -- sonst
+            # faengt die naechste Wiedergabe wieder vorne an.
+            self.resume_pos = self.media_player.position()
             self.media_player.stop()
 
         self.play_along_action.blockSignals(True)
@@ -1271,7 +1484,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.media_status = status
 
     def update_title(self):
-        self.setWindowTitle("%s - noScribeEdit" % (os.path.basename(self.path) if self.path else "Untitled"))
+        self.setWindowTitle("%s - %s" % (os.path.basename(self.path) if self.path else "Untitled", app_name))
 
     def open_find_replace_dialog(self):
         self.search_replace_dialog = SearchAndReplaceDialog(self)
@@ -1288,7 +1501,8 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             # Define the highlight format
             highlight_format = QtGui.QTextCharFormat()
-            highlight_format.setBackground(QtGui.QBrush(QtGui.QColor("#ffff00")))  # Yellow highlight
+            highlight_format.setBackground(QtGui.QBrush(QtGui.QColor(colors['search_hit'])))
+            highlight_format.setForeground(QtGui.QBrush(QtGui.QColor(colors['search_hit_text'])))
 
             # Set the appropriate search flags
             flags = QtGui.QTextDocument.FindFlag(0)
@@ -1315,15 +1529,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 selections.append(selection)
 
             # Apply all the selections to the editor
-            self.editor.setExtraSelections(selections)
+            self._search_selections = selections
+            self._apply_extra_selections()
         except Exception as e:
             # Fail safe: remove stale highlights and notify
             self.remove_highlight_matches()
             # self.dialog_critical(f"Error while highlighting matches: {e}")
         
     def remove_highlight_matches(self):
-        # Clear extra selections to remove highlights
-        self.editor.setExtraSelections([])
+        # Clear extra selections to remove highlights.
+        # Nur die Suchtreffer -- die mitlaufende Zeilenmarkierung bleibt.
+        self._search_selections = []
+        self._apply_extra_selections()
     
     def find_next(self, text, case_sensitive, whole_word):
         if text == '':
@@ -1645,15 +1862,14 @@ class EnterKeyFilter(QtCore.QObject):
 if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
-    app.setApplicationName("noScribeEdit")
+    app.setApplicationName(app_name)
     app.setStyle("Fusion")
     app.setPalette(app.style().standardPalette())
-    app.setStyleSheet(
-        "QMenu { background-color: #ffffff; color: #000000; } "
-        "QMenu::item:selected { background-color: #e6e6e6; } "
-        "QMenu::item:disabled { color: #9a9a9a; } "
-        "QMenu::separator { height: 1px; background: #d0d0d0; margin: 4px 8px; }"
-    )
+    # Vollstaendiges Stylesheet statt einzelner Ergaenzungen: sonst mischt Qt
+    # die Farben des Betriebssystem-Themes hinein, und auf einem dunkel
+    # gestellten Windows stand dunkler Text auf dunklem Grund.
+    app.setStyleSheet(traudi_theme.stylesheet(colors))
+    app.setWindowIcon(QtGui.QIcon(os.path.join(app_dir, 'traudi_logo.png')))
     window = MainWindow()
     
     app.exec_()
