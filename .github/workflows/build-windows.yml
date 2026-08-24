@@ -46,6 +46,10 @@ jobs:
             pip install --index-url https://download.pytorch.org/whl/cpu torch==2.8 torchaudio==2.8
           }
           pip install -r environments/requirements_win_$env:VARIANT.txt
+          # Der Editor bringt seinen eigenen Baukasten mit (PyQt6). Ohne ihn
+          # bricht build_editor() ab, statt den Editor stillschweigend
+          # wegzulassen -- das war der alte Fehler.
+          pip install -r noScribeEdit/environments/requirements.txt
 
       # Regressionsschutz fuer genau den Fehler, der diesen Bau bisher
       # vermutlich hat scheitern lassen: eine "CPU"-Variante, die in

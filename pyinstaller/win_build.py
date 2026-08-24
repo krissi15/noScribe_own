@@ -46,6 +46,44 @@ def find_nsis(explicit: str | None) -> Path:
     raise SystemExit('makensis wurde nicht gefunden. Installiere NSIS oder nutze --nsis.')
 
 
+EDITOR_DIR = PROJECT_ROOT / 'noScribeEdit'
+EDITOR_DIST = SCRIPT_DIR / 'dist' / 'editor'
+
+
+def build_editor(clean: bool) -> Path:
+    """Baut den Editor, damit der Hauptlauf ihn einpacken kann.
+
+    Muss VOR run_pyinstaller() laufen: noScribe_win.spec bindet das Ergebnis
+    ein, und `main.py` sucht zur Laufzeit eine fertige noScribeEdit.exe.
+
+    Frueher gab es diesen Schritt nicht. Die Spec kopierte stattdessen das
+    Quellverzeichnis, waehrend hier eine gebaute .exe erwartet wurde -- der
+    Editor fehlte also im Installer, und niemand bemerkte es, weil das
+    Ergebnis nur stillschweigend uebersprungen wurde.
+    """
+    spec = EDITOR_DIR / 'noScribeEdit_win.spec'
+    if not spec.is_file():
+        raise SystemExit(
+            f'Editor-Spec nicht gefunden: {spec}\n'
+            'Der Editor liegt als git-subtree unter noScribeEdit/.')
+
+    cmd = [sys.executable, '-m', 'PyInstaller', '--noconfirm',
+           str(spec), '--distpath', str(EDITOR_DIST),
+           '--workpath', str(SCRIPT_DIR / 'build' / 'editor')]
+    if clean:
+        cmd.append('--clean')
+    print('>', ' '.join(cmd))
+    subprocess.run(cmd, cwd=EDITOR_DIR, check=True)
+
+    built = EDITOR_DIST / 'noScribeEdit' / 'noScribeEdit.exe'
+    if not built.is_file():
+        # Zusicherung statt stillem Ueberspringen: ein Installer ohne Editor
+        # soll eine bewusste Entscheidung sein, kein Unfall.
+        raise SystemExit(f'Editor wurde nicht gebaut, erwartet: {built}')
+    print(f'Editor fertig: {built}')
+    return built
+
+
 def run_pyinstaller(dist_dir: Path, clean: bool) -> None:
     cmd = [sys.executable, '-m', 'PyInstaller', '--noconfirm',
            str(SCRIPT_DIR / 'noScribe_win.spec'), '--distpath', str(dist_dir)]
@@ -150,10 +188,18 @@ def main() -> int:
     parser.add_argument('--skip-nsis', action='store_true', help='keinen Installer bauen')
     parser.add_argument('--no-clean', action='store_true', help='PyInstaller-Cache behalten')
     parser.add_argument('--nsis', help='Pfad zu makensis.exe')
+    parser.add_argument('--skip-editor', action='store_true',
+                        help='ohne den Editor bauen (er fehlt dann im Installer)')
     args = parser.parse_args()
 
     version = app_version()
     dist_dir = SCRIPT_DIR / 'dist' / ('Traudi_cuda' if args.cuda else 'Traudi_cpu')
+
+    # Zuerst der Editor: der Hauptlauf packt sein Ergebnis mit ein.
+    if args.skip_editor:
+        print('Editor wird uebersprungen (--skip-editor).')
+    else:
+        build_editor(clean=not args.no_clean)
 
     run_pyinstaller(dist_dir, clean=not args.no_clean)
     print(f'PyInstaller fertig: {dist_dir}')

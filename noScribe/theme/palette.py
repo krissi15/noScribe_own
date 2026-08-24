@@ -101,6 +101,16 @@ LIGHT = {
     'status_canceled': '#4F4000',  # 8,06:1
     'status_finished': '#0B5218',  # 7,45:1
     'status_error': '#8F0000',     # 7,68:1
+
+    # -- Editor ----------------------------------------------------------
+    # Die mitlaufende Zeilenmarkierung und die Suchtreffer muessen zweierlei
+    # leisten: Text auf ihnen bleibt lesbar (7:1), und sie sind voneinander
+    # unterscheidbar. Blau heisst "hier laeuft die Aufnahme", Gelb heisst
+    # "hier steht das Gesuchte" -- das entspricht der Erwartung.
+    'playback_line': '#CFE0F7',      # Text darauf: 12,98:1
+    'playback_line_text': '#171A21',
+    'search_hit': '#F5E39B',         # Text darauf: 13,55:1
+    'search_hit_text': '#171A21',
 }
 
 DARK = {
@@ -143,6 +153,12 @@ DARK = {
     'status_canceled': '#D9C07A',  # 7,85:1
     'status_finished': '#86D98F',  # 8,22:1
     'status_error': '#FFB0B0',     # 8,06:1
+
+    # -- Editor ----------------------------------------------------------
+    'playback_line': '#24405F',      # Text darauf: 8,85:1
+    'playback_line_text': '#E8EAF0',
+    'search_hit': '#5A4A12',         # Text darauf: 7,21:1
+    'search_hit_text': '#E8EAF0',
 }
 
 MODES = {'light': LIGHT, 'dark': DARK}
@@ -173,6 +189,9 @@ CONTRACTS = [
     ('border', 'surface', 3.0, 'Begrenzung von Eingabefeldern'),
     ('border', 'bg', 3.0, 'Begrenzung auf dem Fensterhintergrund'),
     ('accent', 'surface_alt', 3.0, 'Fortschrittsbalken gegen seine Bahn'),
+    ('playback_line_text', 'playback_line', 7.0,
+     'Editor: Text der gerade gesprochenen Zeile'),
+    ('search_hit_text', 'search_hit', 7.0, 'Editor: Text eines Suchtreffers'),
 ]
 
 # Die einzige Stelle, an der AAA bewusst unterschritten wird.

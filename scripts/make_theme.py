@@ -15,7 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Schreibt ``noScribe/theme/rlp_justiz.json`` aus ``noScribe/theme/palette.py``.
+"""Schreibt die erzeugten Farbdateien aus ``noScribe/theme/palette.py``.
+
+Zwei Ziele: ``noScribe/theme/rlp_justiz.json`` fuer CustomTkinter und
+``noScribeEdit/traudi_colors.json`` fuer den Editor, der eigenstaendig gebaut
+wird und das Hauptpaket nicht importieren kann.
 
     python scripts/make_theme.py           # Datei neu schreiben
     python scripts/make_theme.py --check   # nur pruefen, ob sie aktuell ist
@@ -36,6 +40,12 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 TARGET = PROJECT_ROOT / 'noScribe' / 'theme' / 'rlp_justiz.json'
+
+# Der Editor wird eigenstaendig gebaut und kann `noScribe.theme.palette` nicht
+# importieren -- er brauchte sonst das ganze Hauptpaket samt torch. Er bekommt
+# deshalb dieselben Werte als Datei. Erzeugt, nicht gepflegt: wer die Palette
+# aendert, aendert damit auch den Editor.
+EDITOR_TARGET = PROJECT_ROOT / 'noScribeEdit' / 'traudi_colors.json'
 
 
 def _load_palette():
@@ -191,6 +201,25 @@ def render() -> str:
     return json.dumps(build(), indent=2, ensure_ascii=False) + '\n'
 
 
+def render_editor() -> str:
+    """Beide Saetze als schlichte Zuordnung Name -> Farbe.
+
+    Qt kennt keine ``[hell, dunkel]``-Paare wie CustomTkinter, sondern
+    Stylesheets. Der Editor waehlt beim Start einen der beiden Saetze aus.
+    """
+    payload = {
+        '_comment': ('Erzeugt von scripts/make_theme.py aus '
+                     'noScribe/theme/palette.py. Nicht von Hand aendern.'),
+        'default_mode': _palette.DEFAULT_MODE,
+        'light': LIGHT,
+        'dark': DARK,
+    }
+    return json.dumps(payload, indent=2, ensure_ascii=False) + '\n'
+
+
+TARGETS = ((TARGET, render), (EDITOR_TARGET, render_editor))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -198,18 +227,24 @@ def main() -> int:
                         help='nur pruefen, nichts schreiben')
     args = parser.parse_args()
 
-    expected = render()
+    stale = []
+    for path, renderer in TARGETS:
+        expected = renderer()
+        if args.check:
+            actual = path.read_text(encoding='utf-8') if path.is_file() else ''
+            if actual != expected:
+                stale.append(path)
+            continue
+        path.write_text(expected, encoding='utf-8')
+        print(f'Geschrieben: {path}')
+
     if args.check:
-        actual = TARGET.read_text(encoding='utf-8') if TARGET.is_file() else ''
-        if actual != expected:
-            print(f'{TARGET} ist nicht aktuell. Neu erzeugen mit:\n'
+        if stale:
+            names = ', '.join(str(p) for p in stale)
+            print(f'Nicht aktuell: {names}. Neu erzeugen mit:\n'
                   f'    python scripts/make_theme.py', file=sys.stderr)
             return 1
-        print(f'{TARGET.name} ist aktuell.')
-        return 0
-
-    TARGET.write_text(expected, encoding='utf-8')
-    print(f'Geschrieben: {TARGET}')
+        print('Alle erzeugten Farbdateien sind aktuell.')
     return 0
 
 
