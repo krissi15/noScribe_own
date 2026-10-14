@@ -1,3 +1,21 @@
+# Traudi
+
+## Version 0.7.4
+Korrekturen nach der Erprobung von 0.7.3.
+
+- Sprechererkennung: Der Installer bringt die Gewichte jetzt mit. Fehlen sie
+  trotzdem, bricht die Transkription nicht mehr ab, sondern läuft ohne
+  Sprecherangaben weiter.
+- Lesbarkeit: Kontraste überarbeitet (Dateinamen waren weiß auf Weiß), neuer
+  Dunkelmodus, umschaltbar ohne Neustart.
+- Editor: wird jetzt mitinstalliert (Startmenü: „Traudi Editor"). Ein Klick
+  ins Transkript springt an die Stelle in der Aufnahme, die laufende Zeile ist
+  hervorgehoben, Sprecher lassen sich in einem Schritt umbenennen.
+- `scripts/fetch_models.py` funktioniert wieder vor der vollständigen
+  Einrichtung.
+- Ein Absturz meldet jetzt Rückgabewert 1 statt 0 -- wichtig für die
+  Softwareverteilung.
+
 # noScribe Changelog
 
 ## version 0.7
