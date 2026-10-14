@@ -1,5 +1,11 @@
 # Traudi
 
+## Version 0.7.5
+- Behebt: 0.7.4 startete unter Windows nicht („No module named 'jaraco'"). Der
+  Installer war mit einer zu alten PyInstaller-Fassung gebaut worden.
+- Der Bau prüft jetzt, ob Traudi und der Editor nach dem Bauen tatsächlich
+  starten.
+
 ## Version 0.7.4
 Korrekturen nach der Erprobung von 0.7.3.
 
