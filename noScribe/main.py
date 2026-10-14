@@ -266,13 +266,9 @@ def resolve_pyannote_dir() -> Optional[Path]:
     """
     if model_download.pyannote_weights_present(user_pyannote_dir):
         return user_pyannote_dir
-    with impres.as_file(impres.files("pyannote")) as bundled:
-        if model_download.pyannote_weights_present(bundled):
-            # as_file kann bei gepackten Ressourcen ein temporäres Verzeichnis
-            # liefern, das beim Verlassen verschwindet. Bei PyInstaller und im
-            # Entwicklungsbaum liegt der Ordner real auf der Platte, deshalb
-            # bleibt der Pfad gültig.
-            return Path(bundled)
+    bundled = model_download.bundled_pyannote_dir()
+    if model_download.pyannote_weights_present(bundled):
+        return bundled
     return None
 
 _CUDA_ERROR_KEYWORDS = (

@@ -4,6 +4,9 @@
 - Behebt: Die Sprechererkennung scheiterte in 0.7.5 an „No module named
   'scipy._external.array_api_compat.numpy.fft'". Dem Windows-Paket fehlte ein
   Modul, das scipy erst zur Laufzeit lädt.
+- Behebt: Die mitgelieferten Gewichte der Sprechererkennung wurden über einen
+  temporären Pfad gesucht, der beim Benutzen schon wieder gelöscht war
+  („HFValidationError: Repo id must use alphanumeric chars").
 - Neu: `Traudi.exe --selftest` lässt die Sprechererkennung einmal auf einem
   kurzen Rauschen laufen. Der Bau macht das bei jedem Installer.
 
