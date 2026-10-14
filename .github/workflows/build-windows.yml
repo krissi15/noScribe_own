@@ -51,6 +51,17 @@ jobs:
           # wegzulassen -- das war der alte Fehler.
           pip install -r noScribeEdit/environments/requirements.txt
 
+      # Beide Listen oben landen in derselben Umgebung, die spaetere gewinnt.
+      # So wurde v0.7.4 mit PyInstaller 6.4.0 statt 6.14.1 gebaut und startete
+      # nicht ("No module named 'jaraco'"). Gebaut wird nur mit der Fassung,
+      # die in der Liste der Variante festgelegt ist.
+      - name: Verify the pinned PyInstaller version is installed
+        run: |
+          $pin = (Select-String -Path "environments/requirements_win_$env:VARIANT.txt" -Pattern '^pyinstaller==([0-9.]+)').Matches[0].Groups[1].Value
+          $have = (python -m PyInstaller --version).Trim()
+          Write-Host "PyInstaller installiert: $have, festgelegt: $pin"
+          if ($have -ne $pin) { throw "PyInstaller $have installiert, festgelegt ist $pin." }
+
       # Regressionsschutz fuer genau den Fehler, der diesen Bau bisher
       # vermutlich hat scheitern lassen: eine "CPU"-Variante, die in
       # Wirklichkeit die CUDA-Raeder samt Laufzeit mitbringt (mehrere GB).
@@ -93,6 +104,31 @@ jobs:
             python pyinstaller/win_build.py --cuda
           } else {
             python pyinstaller/win_build.py
+          }
+
+      # Bisher pruefte nichts, ob das Gebaute ueberhaupt startet: v0.7.4 brach
+      # im Laufzeit-Hook ab, bevor eine Zeile von Traudi lief, und der Bau war
+      # trotzdem gruen. Laeuft ein Programm nach 45 s noch, gilt der Start als
+      # gelungen -- ohne Modell wartet Traudi dann auf den Download-Dialog.
+      - name: Smoke test - do the built programs start?
+        run: |
+          $dist = if ($env:VARIANT -eq 'cuda') { 'Traudi_cuda' } else { 'Traudi_cpu' }
+          $apps = @(
+            "pyinstaller\dist\$dist\Traudi\Traudi.exe",
+            "pyinstaller\dist\$dist\Traudi\_internal\noScribeEdit\noScribeEdit.exe"
+          )
+          foreach ($exe in $apps) {
+            if (-not (Test-Path $exe)) { throw "$exe fehlt." }
+            $err = New-TemporaryFile
+            $p = Start-Process -FilePath $exe -PassThru -RedirectStandardError $err
+            $null = $p.Handle  # sonst bleibt ExitCode nach dem Ende leer
+            Start-Sleep -Seconds 45
+            if ($p.HasExited) {
+              Get-Content $err
+              throw "$exe hat sich beim Start beendet (Exit-Code $($p.ExitCode))."
+            }
+            Stop-Process -Id $p.Id -Force
+            Write-Host "$exe laeuft nach 45 s noch -- Start in Ordnung."
           }
 
       - uses: actions/upload-artifact@v4

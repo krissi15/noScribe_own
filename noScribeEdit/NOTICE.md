@@ -60,6 +60,9 @@ Wesentliche Änderungen gegenüber dem Ursprung:
   stillschweigend weggelassen, wenn er nicht von Hand gebaut worden war: die
   Spec kopierte das Quellverzeichnis, während der Bau und die Anwendung eine
   fertige `noScribeEdit.exe` erwarteten.
+- **PyInstaller-Version an Traudi angeglichen** (`==6.14.1` statt `<=6.4.0`).
+  Beide werden in derselben Umgebung gebaut; die ältere Fassung setzte sich
+  auch für Traudi durch, und Traudi 0.7.4 startete deshalb nicht.
 
 ## Was nicht übernommen wurde
 
