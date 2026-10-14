@@ -810,8 +810,85 @@ Examples:
                        help='Exclude disfluencies from transcript')
     parser.add_argument('--pause', choices=['none', '1sec+', '2sec+', '3sec+'], default=None,
                        help='Mark pauses in transcript')
-    
+    parser.add_argument('--selftest', action='store_true', default=False,
+                       help='Check that speaker detection loads and runs, then exit '
+                            '(0 = ok, 1 = error, 3 = weights missing)')
+
     return parser.parse_args()
+
+
+SELFTEST_WEIGHTS_MISSING = 3
+
+
+def run_selftest() -> int:
+    """Lässt die Sprechererkennung einmal laufen und meldet das Ergebnis.
+
+    Anlass: Traudi 0.7.5 startete, scheiterte aber beim ersten Job mit
+    Sprechererkennung an ``No module named
+    'scipy._external.array_api_compat.numpy.fft'``. scipy lädt das Modul
+    dynamisch, PyInstaller hatte es nicht eingepackt -- und die Startprobe im
+    Bau sah es nicht, weil pyannote erst während einer Transkription geladen
+    wird.
+
+    Deshalb derselbe Weg wie im echten Betrieb: Kindprozess per ``spawn``,
+    dieselbe Einstiegsfunktion, dieselbe Auswahl der Gewichte. Nur dass
+    statt einer Aufnahme fünf Sekunden Rauschen hineingehen.
+    """
+    import time
+    import wave
+
+    import numpy as np
+
+    pyannote_dir = resolve_pyannote_dir()
+    if pyannote_dir is None:
+        print('SELFTEST: Gewichte der Sprechererkennung fehlen.', flush=True)
+        return SELFTEST_WEIGHTS_MISSING
+    print(f'SELFTEST: Gewichte in {pyannote_dir}', flush=True)
+
+    # Erst hier: der Import zieht torch nach.
+    from .pyannote_mp_worker import pyannote_proc_entrypoint
+
+    with TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        wav_path = os.path.join(tmp, 'selftest.wav')
+        rate = 16000
+        samples = (np.random.default_rng(0).standard_normal(rate * 5) * 3000).astype(np.int16)
+        with wave.open(wav_path, 'wb') as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(rate)
+            wav.writeframes(samples.tobytes())
+
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
+        args = {'device': 'cpu', 'audio_path': wav_path, 'num_speakers': None,
+                'pyannote_dir': str(pyannote_dir)}
+        proc = ctx.Process(target=pyannote_proc_entrypoint, args=(args, q))
+        proc.start()
+        try:
+            deadline = time.monotonic() + 600
+            while time.monotonic() < deadline:
+                try:
+                    msg = q.get(timeout=1)
+                except pyqueue.Empty:
+                    if not proc.is_alive():
+                        print(f'SELFTEST: Kindprozess unerwartet beendet (Code {proc.exitcode}).',
+                              flush=True)
+                        return 1
+                    continue
+                if not isinstance(msg, dict) or msg.get('type') != 'result':
+                    continue
+                if msg.get('ok'):
+                    print(f"SELFTEST: Sprechererkennung in Ordnung "
+                          f"({len(msg.get('segments', []))} Segmente).", flush=True)
+                    return 0
+                print(f"SELFTEST: {msg.get('error')}\n{msg.get('trace', '')}", flush=True)
+                return 1
+            print('SELFTEST: Zeitüberschreitung.', flush=True)
+            return 1
+        finally:
+            proc.join(timeout=5)
+            if proc.is_alive():
+                proc.terminate()
 
 
 class TimeEntry(ctk.CTkEntry): # special Entry box to enter time in the format hh:mm:ss
@@ -4002,6 +4079,9 @@ def noScribeMain():
     if args.help_models:
         show_available_models()
         sys.exit(0)
+
+    if args.selftest:
+        sys.exit(run_selftest())
 
     # If explicit headless requested, run pure CLI mode
     if getattr(args, 'no_gui', False):

@@ -143,6 +143,27 @@ jobs:
             Write-Host "$exe laeuft nach 45 s noch -- Start in Ordnung."
           }
 
+      # Die Startprobe oben sieht nur, ob das Fenster aufgeht. pyannote wird
+      # erst bei einer Transkription geladen -- in 0.7.5 fehlte dort ein
+      # scipy-Modul, und erst der Anwender bemerkte es. --selftest laesst die
+      # Sprechererkennung im gebauten Programm auf demselben Weg laufen wie
+      # ein echter Job. Exit-Code 3 heisst: Gewichte fehlen. Das ist nur dann
+      # ein Fehler, wenn ein HF_TOKEN sie haette mitbringen sollen.
+      - name: Self test - does speaker detection load and run?
+        timeout-minutes: 15
+        run: |
+          $dist = if ($env:VARIANT -eq 'cuda') { 'Traudi_cuda' } else { 'Traudi_cpu' }
+          $exe = "pyinstaller\dist\$dist\Traudi\Traudi.exe"
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -PassThru -Wait -NoNewWindow `
+                 -RedirectStandardOutput selftest.out -RedirectStandardError selftest.err
+          Get-Content selftest.out, selftest.err
+          if ($p.ExitCode -eq 3 -and -not $env:HF_TOKEN) {
+            Write-Warning 'Selbsttest uebersprungen: ohne HF_TOKEN fehlen die Gewichte im Installer.'
+          } elseif ($p.ExitCode -ne 0) {
+            throw "Selbsttest der Sprechererkennung fehlgeschlagen (Exit-Code $($p.ExitCode))."
+          }
+          $global:LASTEXITCODE = 0
+
       - uses: actions/upload-artifact@v4
         with:
           name: traudi-windows-installer-${{ github.event.inputs.variant || 'cpu' }}
