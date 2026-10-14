@@ -1,5 +1,18 @@
 # Traudi
 
+## Version 0.7.6
+- Behebt: Die Sprechererkennung scheiterte in 0.7.5 an „No module named
+  'scipy._external.array_api_compat.numpy.fft'". Dem Windows-Paket fehlte ein
+  Modul, das scipy erst zur Laufzeit lädt.
+- Behebt: Die mitgelieferten Gewichte der Sprechererkennung wurden über einen
+  temporären Pfad gesucht, der beim Benutzen schon wieder gelöscht war
+  („HFValidationError: Repo id must use alphanumeric chars").
+- Behebt: Die Sprechererkennung konnte im Windows-Paket keine Audiodatei lesen
+  („Couldn't find appropriate backend to handle uri"). Traudi liest die intern
+  erzeugte WAV-Datei jetzt selbst, ohne torchaudio.
+- Neu: `Traudi.exe --selftest` lässt die Sprechererkennung einmal auf einem
+  kurzen Rauschen laufen. Der Bau macht das bei jedem Installer.
+
 ## Version 0.7.5
 - Behebt: 0.7.4 startete unter Windows nicht („No module named 'jaraco'"). Der
   Installer war mit einer zu alten PyInstaller-Fassung gebaut worden.

@@ -2,14 +2,36 @@ import importlib.resources as impres
 import os
 import platform
 import traceback
+import wave
 
-import torchaudio
+import numpy as np
 
 if platform.system() == "Darwin" and platform.machine() == "x86_64":
     os.environ.setdefault("OMP_NUM_THREADS", "1")
     os.environ.setdefault("MKL_NUM_THREADS", "1")
     os.environ.setdefault("MKL_THREADING_LAYER", "GNU")
     os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")  # temp workaround for iomp5 dup
+
+def read_pcm_wav(path) -> tuple:
+    """Liest die von Traudi erzeugte WAV-Datei als (Kanäle, Frames), float32.
+
+    Liefert dasselbe wie ``torchaudio.load``: Werte zwischen -1 und 1, Form
+    (Kanäle, Frames). ``torchaudio.load`` selbst ist im Windows-Paket nicht
+    benutzbar -- ab torchaudio 2.8 hängt es an torchcodec, und das findet dort
+    seine DLLs nicht ("Couldn't find appropriate backend to handle uri ...").
+    Einen Decoder braucht es hier aber gar nicht: ``audio/convert.py`` schreibt
+    immer PCM, 16 Bit, 16 kHz, mono, und das liest die Standardbibliothek.
+    """
+    with wave.open(str(path), 'rb') as wav:
+        channels = wav.getnchannels()
+        width = wav.getsampwidth()
+        rate = wav.getframerate()
+        raw = wav.readframes(wav.getnframes())
+    if width != 2:
+        raise ValueError(f'{path}: erwartet 16-Bit-PCM, gefunden {8 * width} Bit')
+    samples = np.frombuffer(raw, dtype='<i2').astype(np.float32) / 32768.0
+    return samples.reshape(-1, channels).T.copy(), rate
+
 
 def pyannote_proc_entrypoint(args: dict, q):
     """Runs diarization in a child process and streams progress/logs.
@@ -83,7 +105,8 @@ def pyannote_proc_entrypoint(args: dict, q):
         else:
             with impres.as_file(impres.files("pyannote")) as mypath:
                 pipeline = Pipeline.from_pretrained(mypath)
-        waveform, sample_rate = torchaudio.load(audio_file)        
+        samples, sample_rate = read_pcm_wav(audio_file)
+        waveform = torch.from_numpy(samples)
         pipeline.to(torch.device(device))
 
         seg_list = []

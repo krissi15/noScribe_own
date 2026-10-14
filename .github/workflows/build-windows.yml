@@ -90,18 +90,33 @@ jobs:
           Write-Warning "Traudi laedt sie beim ersten Bedarf nach."
           Write-Warning "Zum Mitliefern das Repository-Secret HF_TOKEN hinterlegen."
 
-      # community.chocolatey.org antwortet gelegentlich mit 503. choco meldet
-      # dann trotzdem Erfolg ("installed 0/0 packages"), und der Bau scheitert
-      # erst Minuten spaeter an "makensis wurde nicht gefunden". Deshalb bis zu
-      # viermal versuchen und danach pruefen, ob makensis wirklich da ist.
+      # community.chocolatey.org antwortet gelegentlich mit 503 -- am 14.10.2026
+      # mehrmals, auch ueber vier Versuche hinweg. choco meldet dann trotzdem
+      # Erfolg ("installed 0/0 packages"). Deshalb: einige Versuche, danach
+      # das portable ZIP direkt vom NSIS-Projekt (Pruefsumme festgelegt), und
+      # am Ende muss makensis wirklich da sein. Der Ordner kommt in den PATH,
+      # dort sucht win_build.py zuerst.
       - name: Install NSIS
         run: |
           $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
-          for ($i = 1; $i -le 4 -and -not (Test-Path $makensis); $i++) {
+          for ($i = 1; $i -le 3 -and -not (Test-Path $makensis); $i++) {
             if ($i -gt 1) { Write-Host "Neuer Versuch $i in $(15 * $i) s ..."; Start-Sleep -Seconds (15 * $i) }
             choco install nsis --no-progress -y
           }
+          if (-not (Test-Path $makensis)) {
+            Write-Warning 'Chocolatey nicht erreichbar -- NSIS 3.11 direkt von SourceForge.'
+            $zip = Join-Path $env:RUNNER_TEMP 'nsis-3.11.zip'
+            Invoke-WebRequest -UserAgent 'Wget/1.21' -OutFile $zip `
+              -Uri 'https://downloads.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11.zip'
+            $hash = (Get-FileHash $zip -Algorithm SHA256).Hash
+            if ($hash -ne 'C7D27F780DDB6CFFB4730138CD1591E841F4B7EDB155856901CDF5F214394FA1') {
+              throw "Pruefsumme von nsis-3.11.zip stimmt nicht: $hash"
+            }
+            Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP
+            $makensis = Join-Path $env:RUNNER_TEMP 'nsis-3.11\makensis.exe'
+          }
           if (-not (Test-Path $makensis)) { throw "NSIS ist nicht installiert: $makensis fehlt." }
+          Split-Path $makensis | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           Write-Host "NSIS gefunden: $makensis"
           $global:LASTEXITCODE = 0
 
@@ -142,6 +157,27 @@ jobs:
             Stop-Process -Id $p.Id -Force
             Write-Host "$exe laeuft nach 45 s noch -- Start in Ordnung."
           }
+
+      # Die Startprobe oben sieht nur, ob das Fenster aufgeht. pyannote wird
+      # erst bei einer Transkription geladen -- in 0.7.5 fehlte dort ein
+      # scipy-Modul, und erst der Anwender bemerkte es. --selftest laesst die
+      # Sprechererkennung im gebauten Programm auf demselben Weg laufen wie
+      # ein echter Job. Exit-Code 3 heisst: Gewichte fehlen. Das ist nur dann
+      # ein Fehler, wenn ein HF_TOKEN sie haette mitbringen sollen.
+      - name: Self test - does speaker detection load and run?
+        timeout-minutes: 15
+        run: |
+          $dist = if ($env:VARIANT -eq 'cuda') { 'Traudi_cuda' } else { 'Traudi_cpu' }
+          $exe = "pyinstaller\dist\$dist\Traudi\Traudi.exe"
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -PassThru -Wait -NoNewWindow `
+                 -RedirectStandardOutput selftest.out -RedirectStandardError selftest.err
+          Get-Content selftest.out, selftest.err
+          if ($p.ExitCode -eq 3 -and -not $env:HF_TOKEN) {
+            Write-Warning 'Selbsttest uebersprungen: ohne HF_TOKEN fehlen die Gewichte im Installer.'
+          } elseif ($p.ExitCode -ne 0) {
+            throw "Selbsttest der Sprechererkennung fehlgeschlagen (Exit-Code $($p.ExitCode))."
+          }
+          $global:LASTEXITCODE = 0
 
       - uses: actions/upload-artifact@v4
         with:

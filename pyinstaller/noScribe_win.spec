@@ -94,7 +94,14 @@ noScribe_datas += copy_metadata('pyannote.pipeline')
 noScribe_binaries += collect_dynamic_libs('pyannote')
 noScribe_hiddenimports += collect_submodules('pyannote')
 noScribe_hiddenimports += collect_submodules('scipy')
-# noScribe_hiddenimports += ['scipy._lib.array_api_compat.numpy.fft']
+# scipy/_external hat keine __init__.py. collect_submodules('scipy') geht an
+# solchen Namespace-Paketen vorbei, und array_api_compat laedt seine
+# Untermodule per __import__(__package__ + ".fft"), was die Analyse auch
+# nicht sieht. Ohne diese Zeile scheiterte die Sprechererkennung in 0.7.5 an
+# "No module named 'scipy._external.array_api_compat.numpy.fft'".
+# (Aeltere scipy-Fassungen legten das unter scipy._lib ab; dort fand
+# collect_submodules('scipy') es noch.)
+noScribe_hiddenimports += collect_submodules('scipy._external', on_error='ignore')
 tmp_ret = collect_all('speechbrain')
 noScribe_datas += tmp_ret[0]; noScribe_binaries += tmp_ret[1]; noScribe_hiddenimports += tmp_ret[2]
 

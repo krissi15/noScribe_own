@@ -83,6 +83,27 @@ def pyannote_weights_present(pyannote_dir: Path) -> bool:
     return all((Path(pyannote_dir) / rel).is_file() for rel in PYANNOTE_WEIGHTS)
 
 
+def bundled_pyannote_dir() -> Path:
+    """Der mitgelieferte Ordner ``pyannote/`` -- im Installer wie im Quellbaum.
+
+    Bewusst nicht über ``importlib.resources``: ``files("pyannote")`` trifft
+    auf das Namespace-Paket der pyannote-Bibliotheken und liefert einen
+    ``MultiplexedPath``. ``as_file`` kopiert den dann in ein temporäres
+    Verzeichnis, das beim Verlassen des ``with`` gelöscht wird. Ein so
+    ermittelter Pfad, zurückgegeben und später benutzt, zeigt ins Leere --
+    pyannote hielt ihn für einen HuggingFace-Namen und
+    brach mit ``HFValidationError`` ab.
+
+    Die .spec legt den Ordner nach ``_MEIPASS/pyannote``, im Quellbaum liegt
+    er neben dem Paket ``noScribe``.
+    """
+    import sys
+    base = getattr(sys, '_MEIPASS', None)
+    if base is None:
+        base = Path(__file__).resolve().parent.parent
+    return Path(base) / 'pyannote'
+
+
 def prepare_user_pyannote_dir(bundle_dir: Path, user_dir: Path) -> Path:
     """Legt neben den nachzuladenden Gewichten die Pipeline-Konfiguration ab.
 
