@@ -24,8 +24,8 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 def app_version() -> str:
     """Einzige Quelle der Version ist `__version__` in noScribe/_version.py.
 
-    Bewusst per Regex und nicht per Import: ein `import noScribe` würde über
-    das Paket-`__init__` main.py und damit torch/faster-whisper mitladen.
+    Bewusst per Regex und nicht per Import: das Skript soll ohne das Paket
+    auf dem Suchpfad laufen und nichts von der Anwendung laden.
     """
     source = (PROJECT_ROOT / 'noScribe' / '_version.py').read_text(encoding='utf-8')
     match = re.search(r'^__version__\s*=\s*"([^"]+)"', source, re.MULTILINE)
