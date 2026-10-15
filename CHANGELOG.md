@@ -47,6 +47,20 @@ Schnellere Sprechererkennung auf dem Prozessor:
 - Jeder Bau liefert neben dem Installer ein ZIP zum Ausprobieren ohne
   Administratorrechte.
 
+Nachprüfbarkeit des Transkripts:
+
+- Unter dem Titel steht jetzt sichtbar „Maschineller Entwurf – nicht geprüft.
+  Vor Verwendung vollständig mit der Aufnahme abgleichen.“ Als eigener Absatz,
+  damit er nach der Prüfung im Editor mit einem Griff gelöscht werden kann.
+- Der Kopf nennt Erstellungszeitpunkt, Modell samt Herkunft und die SHA-256-
+  Prüfsumme der Original-Audiodatei. Damit lässt sich belegen, aus welcher
+  Aufnahme der Text stammt, auch wenn die Datei umbenannt wurde
+  (`certutil -hashfile <Datei> SHA256`). Dieselben Angaben stehen
+  maschinenlesbar als `<meta name="traudi_…">` im HTML; der Editor behält sie
+  beim Speichern bei.
+- WebVTT: Die NOTE am Anfang enthält den ganzen Kopf, nicht nur dessen erste
+  Zeile.
+
 ## Version 0.7.6
 - Behebt: Die Sprechererkennung scheiterte in 0.7.5 an „No module named
   'scipy._external.array_api_compat.numpy.fft'". Dem Windows-Paket fehlte ein

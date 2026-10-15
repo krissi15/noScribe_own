@@ -170,6 +170,9 @@ zh-CN: &defaults
   # 文档内容
   doc_header: '使用Traudi %{version} 版本转录'
   doc_header_audio: '音频文件：%{file}'
+  doc_draft_notice: "机器生成的草稿——未经审核。使用前请与录音逐一核对。"
+  doc_header_provenance: "创建时间：%{created} | 模型：%{model}"
+  doc_header_sha256: "音频文件的 SHA-256：%{hash}"
   pause_minutes: '(%{minutes} 分钟 暂停)'
   pause_seconds: '(%{seconds} 秒暂停)'
   

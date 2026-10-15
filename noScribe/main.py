@@ -52,8 +52,8 @@ from faster_whisper.audio import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
 
-from . import (audio, exception, model_download, privacy, progress_eta, transcription,
-               utils, whisper_args)
+from . import (audio, exception, model_download, privacy, progress_eta, provenance,
+               transcription, utils, whisper_args)
 from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
 from .theme import COLORS, apply_mode, theme_path
@@ -3103,6 +3103,16 @@ class App(ctk.CTk):
                 self.logn(t('start_transcription'), 'highlight')
                 self.logn(t('loading_whisper'))
 
+                # Herkunftsangaben für den Kopf (siehe provenance.py). Die
+                # Prüfsumme gilt der Originaldatei, nicht der WAV-Arbeitskopie.
+                created = provenance.created_now()
+                model_name = provenance.model_name_of(job.whisper_model)
+                try:
+                    audio_sha256 = provenance.sha256_file(job.audio_file)
+                except OSError as e:
+                    audio_sha256 = ''
+                    self.logn(f'SHA-256: {e}', where='file')
+
                 info = None
                 transcription_success = False
                 while True:
@@ -3118,13 +3128,13 @@ class App(ctk.CTk):
                     tag.content = job.audio_file
                     d.head.appendChild(tag)
 
-                    # add app version:
-                    """ # removed because not really necessary
-                    tag = d.createElement("meta")
-                    tag.name = "noScribe_version"
-                    tag.content = app_version
-                    d.head.appendChild(tag)
-                    """
+                    # Herkunft, maschinenlesbar
+                    for meta_name, meta_content in provenance.meta_tags(
+                            app_version, created, model_name, audio_sha256).items():
+                        tag = d.createElement("meta")
+                        tag.name = meta_name
+                        tag.content = meta_content
+                        d.head.appendChild(tag)
 
                     #add WordSection1 (for line numbers in MS Word) as main_body
                     main_body = d.createElement('div')
@@ -3135,6 +3145,16 @@ class App(ctk.CTk):
                     p = d.createElement('p')
                     p.setStyle('font-weight', '600')
                     p.appendText(html.escape(Path(job.audio_file).stem, quote=False)) # use the name of the audio file (without extension) as the title
+                    main_body.appendChild(p)
+
+                    # Vermerk: ungeprüfter maschineller Entwurf. Steht als
+                    # eigener Absatz da, damit er nach der Prüfung im Editor
+                    # mit einem Griff gelöscht werden kann.
+                    p = d.createElement('p')
+                    s = d.createElement('span')
+                    s.setStyle('font-weight', '600')
+                    s.appendText(html.escape(t('doc_draft_notice'), quote=False))
+                    p.appendChild(s)
                     main_body.appendChild(p)
 
                     # subheader
@@ -3149,6 +3169,19 @@ class App(ctk.CTk):
                     s.appendText(html.escape(t('doc_header_audio', file=job.audio_file), quote=False))
                     br = d.createElement('br')
                     s.appendChild(br)
+
+                    s.appendText(html.escape(t('doc_header_provenance',
+                                               created=provenance.format_local(created),
+                                               model=provenance.describe_model(model_name)),
+                                             quote=False))
+                    br = d.createElement('br')
+                    s.appendChild(br)
+
+                    if audio_sha256:
+                        s.appendText(html.escape(t('doc_header_sha256', hash=audio_sha256),
+                                                 quote=False))
+                        br = d.createElement('br')
+                        s.appendChild(br)
 
                     s.appendText(f'({html.escape(option_info, quote=False)})')
 

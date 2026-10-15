@@ -72,3 +72,22 @@ def test_html_to_webvtt_carries_the_text_and_timings(utils):
     assert 'Nehmen Sie bitte Platz.' in vtt
     # 1500 ms Startzeit des zweiten Segments.
     assert '00:00:01.500' in vtt
+
+
+def test_html_to_webvtt_note_covers_the_whole_header(utils):
+    """Seit 0.7.7 stehen zwischen Titel und Text mehrere Absätze (Vermerk
+    "maschineller Entwurf", Programm, Herkunft). Alle gehören in die NOTE."""
+    html_str = """<html><body>
+<p>Vernehmung</p>
+<p>Maschineller Entwurf – nicht geprüft.</p>
+<p>Audiodatei: a.mp3<br/>SHA-256 der Audiodatei: abc</p>
+<p></p>
+<p><a name="ts_0_1500_S1">Guten Tag.</a></p>
+<p>Nachsatz ohne Zeitmarke</p>
+</body></html>"""
+    vtt = utils.html_to_webvtt(html_str)
+    note = vtt.split('\n\n')[1]
+    assert note.startswith('NOTE')
+    assert 'Maschineller Entwurf' in note
+    assert 'SHA-256 der Audiodatei: abc' in note
+    assert 'Nachsatz' not in note

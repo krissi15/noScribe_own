@@ -171,6 +171,9 @@ de:
   # Doc contents
   doc_header: 'Transkribiert mit Traudi Vers. %{version}'
   doc_header_audio: 'Audiodatei: %{file}'
+  doc_draft_notice: "Maschineller Entwurf – nicht geprüft. Vor Verwendung vollständig mit der Aufnahme abgleichen."
+  doc_header_provenance: "Erstellt: %{created} | Modell: %{model}"
+  doc_header_sha256: "SHA-256 der Audiodatei: %{hash}"
   pause_minutes: '(%{minutes} Minute[n] Pause)'
   pause_seconds: '(%{seconds} Sekunden Pause)'
   

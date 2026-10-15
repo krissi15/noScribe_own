@@ -169,6 +169,9 @@ es:
   # Contenido del documento
   doc_header: 'Transcrito con Traudi ver. %{version}'
   doc_header_audio: 'Archivo de audio: %{file}'
+  doc_draft_notice: "Borrador generado automáticamente – sin revisar. Contrástelo por completo con la grabación antes de usarlo."
+  doc_header_provenance: "Creado: %{created} | Modelo: %{model}"
+  doc_header_sha256: "SHA-256 del archivo de audio: %{hash}"
   pause_minutes: '(%{minutes} minuto[s] pausa)'
   pause_seconds: '(%{seconds} segundos de pausa)'
   

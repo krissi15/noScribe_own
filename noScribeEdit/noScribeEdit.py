@@ -263,6 +263,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.playback_speed = 100
         self.path = None # current file
         self.audio_source = None # corresponding audio file
+        self.provenance_meta = [] # traudi_*-Angaben aus dem <head>, siehe _file_save
         self.tmp_audio_file = None
         self.tmpdir = None
         self.audio_decode_error_count = 0
@@ -672,6 +673,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             self.editor.clear()
             self.audio_source = None
+            self.provenance_meta = []
             self.tmp_audio_file = None
             self.status.showMessage("Loading... please wait.")
             # avoid that all anchors become formatted as underlined and blue 
@@ -705,6 +707,14 @@ class MainWindow(QtWidgets.QMainWindow):
                     if (anker_name != None) and (anker_name.startswith('ts_')):
                         anker.href = anker_name
                         anker.removeAttribute('name')
+
+                # Herkunftsangaben (Prüfsumme der Aufnahme, Modell, Zeitpunkt):
+                # QTextEdit verwirft unbekannte <meta>, deshalb hier merken
+                # und beim Speichern wieder einsetzen.
+                self.provenance_meta = [
+                    (str(tag.name), str(tag.content))
+                    for tag in parser.head.getElementsByTagName('meta')
+                    if str(tag.name or '').startswith('traudi_')]
 
                 # get path to audio source from html:
                 tags = parser.head.getElementsByName("audio_source")
@@ -865,6 +875,12 @@ class MainWindow(QtWidgets.QMainWindow):
             audio_tag.name = "audio_source"
             audio_tag.content = self.audio_source
             parser.head.appendChild(audio_tag)
+
+        for name, content in self.provenance_meta:
+            tag = parser.createElement("meta")
+            tag.name = name
+            tag.content = content
+            parser.head.appendChild(tag)
 
         # add css-styles, especially for MS Word
         meta_tag = parser.createElement("style")

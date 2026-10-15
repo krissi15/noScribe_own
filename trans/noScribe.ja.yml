@@ -169,6 +169,9 @@ ja:
   # ドキュメント内容
   doc_header: 'Traudi vers. %{version}で転写されました'
   doc_header_audio: '音声ファイル：%{file}'
+  doc_draft_notice: "機械による下書き（未確認）。使用前に録音と全文を照合してください。"
+  doc_header_provenance: "作成: %{created} | モデル: %{model}"
+  doc_header_sha256: "音声ファイルの SHA-256: %{hash}"
   pause_minutes: '(%{minutes}分[秒]休止)'
   pause_seconds: '(%{seconds}秒休止)'
   

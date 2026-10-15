@@ -170,6 +170,9 @@ ru:
   # Содержимое документа
   doc_header: 'Транскрибировано с помощью Traudi версии %{version}'
   doc_header_audio: 'Аудиофайл: %{file}'
+  doc_draft_notice: "Машинный черновик – не проверен. Перед использованием полностью сверьте с записью."
+  doc_header_provenance: "Создано: %{created} | Модель: %{model}"
+  doc_header_sha256: "SHA-256 аудиофайла: %{hash}"
   pause_minutes: '(%{minutes} минуты паузы)'
   pause_seconds: '(%{seconds} секунд паузы)'
   
