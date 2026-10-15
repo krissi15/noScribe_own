@@ -89,3 +89,36 @@ def test_format_version_always_has_four_segments():
     win_build = load_module('pyinstaller/win_build.py', '_traudi_test_nsis_build')
     for value in ('0.7.3', '1.2', '1.2.3.4'):
         assert len(win_build.format_version(value).split('.')) == 4
+
+
+class TestSixtyFourBit:
+    """Bis 0.7.6 baute makensis einen reinen 32-Bit-Installer: Traudi lag in
+    "C:\\Program Files (x86)", die Registry unter WOW6432Node, und die
+    Erkennungsregel aus dem README fand die Installation nicht."""
+
+    def test_installs_into_the_64_bit_program_folder(self, template):
+        assert 'InstallDir "$PROGRAMFILES64\\Traudi"' in template
+        assert 'InstallDir "$PROGRAMFILES\\Traudi"' not in template
+
+    def test_no_install_dir_from_the_32_bit_registry(self, template):
+        """InstallDirRegKey laeuft vor .onInit in der 32-Bit-Ansicht und
+        wuerde den alten (x86)-Ordner wieder vorschlagen."""
+        code = [l for l in template.splitlines() if not l.lstrip().startswith(';')]
+        assert not any('InstallDirRegKey' in l for l in code)
+
+    def test_registry_view_is_64_bit_for_install_and_uninstall(self, template):
+        assert '!include "x64.nsh"' in template
+        for function in ('Function .onInit', 'Function un.onInit'):
+            body = template.split(function, 1)[1].split('FunctionEnd', 1)[0]
+            assert 'SetRegView 64' in body, function
+
+    def test_refuses_32_bit_windows(self, template):
+        body = template.split('Function .onInit', 1)[1].split('FunctionEnd', 1)[0]
+        assert '${IfNot} ${RunningX64}' in body and 'Abort' in body
+
+    def test_removes_a_legacy_32_bit_installation_first(self, template):
+        section = template.split('Section -MainProgram', 1)[1]
+        legacy = section.index('SetRegView 32')
+        assert section.index('ExecWait', legacy) < section.index('#*install_entries*#')
+        # ... und kehrt danach in die 64-Bit-Ansicht zurueck.
+        assert 'SetRegView 64' in section[legacy:section.index('legacyDone:')]
