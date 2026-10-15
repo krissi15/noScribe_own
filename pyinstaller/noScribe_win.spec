@@ -45,6 +45,7 @@ noScribe_datas += [
 model_dir_marker('fast'),
 model_dir_marker('precise'),
 ('../LICENSE.txt', '.'),
+('../MODELLE_LIZENZEN.md', '.'),
 ('../img/traudi_logo.ico', 'img/'),
 ('../img/traudi_logo.png', 'img/'),
 ('../noScribe/theme/rlp_justiz.json', 'noScribe/theme/'),

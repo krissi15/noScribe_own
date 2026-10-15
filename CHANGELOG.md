@@ -72,6 +72,23 @@ Sprache:
   englisch waren.
 - Die deutsche Übersetzung spricht einheitlich mit „Sie“ an.
 
+Lizenzen:
+
+- Neue Datei `MODELLE_LIZENZEN.md` (liegt dem Installer bei): Urheber, Quellen
+  und Lizenzen der Modelle -- pyannote community-1 und WeSpeaker (CC-BY-4.0),
+  PLDA (BUT), Whisper (MIT). Offene Punkte sind ausdrücklich benannt. Der
+  Über-Dialog nennt die Modelle und ihre Lizenzen.
+
+Bau:
+
+- Der Windows-CPU-Bau installiert festgeschriebene Paketfassungen
+  (`environments/constraints_win_cpu.txt`, aus einem grünen Bau übernommen)
+  und prüft die Umgebung mit `pip check`. Vorher waren u. a. faster-whisper, av
+  und pyannote.audio offen. pyannote.audio ist in allen Listen auf 4.0.x
+  begrenzt.
+- Am Ende jedes Baus steht im Protokoll, welche Fassungen im Installer
+  stecken.
+
 ## Version 0.7.6
 - Behebt: Die Sprechererkennung scheiterte in 0.7.5 an „No module named
   'scipy._external.array_api_compat.numpy.fft'". Dem Windows-Paket fehlte ein

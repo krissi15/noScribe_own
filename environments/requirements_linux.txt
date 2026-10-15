@@ -16,7 +16,7 @@ CTkToolTip
 faster-whisper
 huggingface_hub # Modell-Download, siehe scripts/fetch_models.py
 Pillow
-pyannote.audio>=4
+pyannote.audio>=4.0,<4.1 # noScribe/diarization_speed.py ist für 4.0.x geschrieben
 pyinstaller
 python-i18n
 PyYAML
