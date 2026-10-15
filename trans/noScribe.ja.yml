@@ -187,3 +187,4 @@ ja:
   queue_run_button: '実行'
   transcript_exists_new_name: "ファイル %{old} は既に存在します。上書きを避けるため、Traudi は結果を次の名前で保存します: %{new}"
   no_speech_detected: "（録音から音声は検出されませんでした。）"
+  progress_remaining: "残り約 %{time}"

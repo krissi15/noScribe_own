@@ -189,3 +189,4 @@ de:
   queue_run_button: 'Ausführen'
   transcript_exists_new_name: "Die Datei %{old} gibt es schon. Damit nichts überschrieben wird, speichert Traudi das Ergebnis unter: %{new}"
   no_speech_detected: "(In der Aufnahme wurde keine Sprache erkannt.)"
+  progress_remaining: "noch etwa %{time}"

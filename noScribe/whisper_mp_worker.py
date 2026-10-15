@@ -7,7 +7,7 @@ import traceback
 from dataclasses import asdict, is_dataclass
 from i18n import t
 
-from . import privacy
+from . import privacy, proc_tuning
 from .whisper_args import build_prompt, resolve_compute_type
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,8 @@ def whisper_proc_entrypoint(args: dict, q):
       {"type": "result", "ok": False, "error": str, "trace": str}
     """
     privacy.go_offline()
+    # Siehe proc_tuning: sonst bremst Windows den fensterlosen Prozess aus.
+    proc_tuning.disable_power_throttling()
     try:
         # Import heavy libs only in the child
         from faster_whisper import WhisperModel

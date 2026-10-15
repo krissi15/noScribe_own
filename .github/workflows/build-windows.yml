@@ -245,6 +245,17 @@ jobs:
           path: pyinstaller/win_installer/*.exe
           if-no-files-found: error
 
+      # Zum Ausprobieren ohne Administratorrechte: derselbe Programmordner wie
+      # im Installer, als ZIP. Entpacken, Traudi.exe starten -- Einstellungen
+      # und Whisper-Modelle landen wie bei der installierten Fassung im
+      # Benutzerprofil. Nur als Bau-Artefakt, nicht am Release.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: traudi-portable-${{ github.event.inputs.variant || 'cpu' }}
+          path: pyinstaller/dist/Traudi_${{ github.event.inputs.variant || 'cpu' }}/Traudi/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Attach installer to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
