@@ -1,8 +1,8 @@
 # Traudi
 
 ## Version 0.7.7
-Datenschutz und Schutz vor Datenverlust, nach einer Prüfung durch sieben
-Fachperspektiven.
+Datenschutz, Schutz vor Datenverlust und Tempo, nach einer Prüfung durch
+sieben Fachperspektiven.
 
 - Keine Nutzungsstatistik mehr an Dritte: pyannote 4 schickte bei jeder
   Sprechererkennung Sitzungskennung, Audiodauer und Sprecherzahl an
@@ -25,6 +25,27 @@ Fachperspektiven.
 - Installer: 64-Bit nach `C:\Program Files\Traudi`, Registry in der
   64-Bit-Ansicht. Eine Altinstallation unter `Program Files (x86)` wird
   automatisch entfernt.
+
+Schnellere Sprechererkennung auf dem Prozessor:
+
+- Der teuerste Schritt („Embeddings“) ist etwa 3,5-mal so schnell.
+  pyannote schickte jedes 10-Sekunden-Fenster dreimal durch das
+  Stimmabdruck-Netz -- einmal je möglichem Sprecher, auch wenn dort niemand
+  sprach. Traudi rechnet jedes Fenster einmal und Fenster ohne Sprache gar
+  nicht. Die Sprecherzuordnung bleibt gleich (Abweichung nur durch Rundung in
+  der achten Nachkommastelle); `--selftest` vergleicht beide Wege an einer
+  Beispielaufnahme mit zwei Sprechern.
+- Windows bremst die fensterlosen Rechenprozesse nicht mehr als
+  „Hintergrundarbeit“ (Energiedrosselung, auf neueren Intel-Prozessoren die
+  langsamen Effizienzkerne).
+- Die Sprechererkennung hält sich an die eingestellte Thread-Zahl
+  (`threads`) wie Whisper.
+- Während der Sprechererkennung steht die geschätzte Restzeit im Protokoll.
+- Weniger Arbeitsspeicher beim Einlesen der Aufnahme.
+- `--selftest` meldet die Rechenzeit und die Thread-Zahl -- hilfreich, um
+  einen langsamen Rechner einzuordnen.
+- Jeder Bau liefert neben dem Installer ein ZIP zum Ausprobieren ohne
+  Administratorrechte.
 
 ## Version 0.7.6
 - Behebt: Die Sprechererkennung scheiterte in 0.7.5 an „No module named

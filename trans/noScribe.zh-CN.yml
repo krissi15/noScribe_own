@@ -188,6 +188,7 @@ zh-CN: &defaults
   queue_run_button: '运行'
   transcript_exists_new_name: "文件 %{old} 已存在。为避免覆盖，Traudi 将结果保存为：%{new}"
   no_speech_detected: "（录音中未检测到语音。）"
+  progress_remaining: "剩余约 %{time}"
 
 zh:
   <<: *defaults

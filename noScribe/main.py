@@ -52,7 +52,8 @@ from faster_whisper.audio import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
 
-from . import audio, exception, model_download, privacy, transcription, utils, whisper_args
+from . import (audio, exception, model_download, privacy, progress_eta, transcription,
+               utils, whisper_args)
 from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
 from .theme import COLORS, apply_mode, theme_path
@@ -841,6 +842,61 @@ SELFTEST_WEIGHTS_MISSING = 3
 LOG_RETENTION_DAYS = 30
 
 
+def _selftest_child(target, args: dict, timeout: float = 900):
+    """Startet `target` wie im Betrieb als spawn-Kindprozess und gibt dessen
+    Ergebnis-Nachricht zurück (None bei Absturz oder Zeitüberschreitung)."""
+    import time
+    ctx = mp.get_context('spawn')
+    q = ctx.Queue()
+    proc = ctx.Process(target=target, args=(args, q))
+    proc.start()
+    try:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                msg = q.get(timeout=1)
+            except pyqueue.Empty:
+                if not proc.is_alive():
+                    print(f'SELFTEST: Kindprozess unerwartet beendet (Code {proc.exitcode}).',
+                          flush=True)
+                    return None
+                continue
+            if not isinstance(msg, dict):
+                continue
+            if msg.get('type') == 'log':
+                print(f"SELFTEST:   {msg.get('msg')}", flush=True)
+            elif msg.get('type') == 'result':
+                if not msg.get('ok'):
+                    print(f"SELFTEST: {msg.get('error')}\n{msg.get('trace', '')}", flush=True)
+                return msg
+        print('SELFTEST: Zeitüberschreitung.', flush=True)
+        return None
+    finally:
+        proc.join(timeout=5)
+        if proc.is_alive():
+            proc.terminate()
+
+
+def selftest_sample_wav() -> Optional[Path]:
+    """Die Beispielaufnahme, die pyannote.audio mitbringt (30 s, zwei
+    Sprecher, 16 kHz mono). Liegt im Paket unter pyannote/audio/sample/."""
+    import importlib.util
+    locations = []
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        locations.append(Path(sys._MEIPASS) / 'pyannote' / 'audio')
+    try:
+        spec = importlib.util.find_spec('pyannote.audio')
+        if spec is not None:
+            locations += [Path(p) for p in (spec.submodule_search_locations or [])]
+    except (ImportError, ValueError):
+        pass
+    for location in locations:
+        candidate = location / 'sample' / 'sample.wav'
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def run_selftest() -> int:
     """Lässt die Sprechererkennung einmal laufen und meldet das Ergebnis.
 
@@ -852,10 +908,14 @@ def run_selftest() -> int:
     wird.
 
     Deshalb derselbe Weg wie im echten Betrieb: Kindprozess per ``spawn``,
-    dieselbe Einstiegsfunktion, dieselbe Auswahl der Gewichte. Nur dass
-    statt einer Aufnahme fünf Sekunden Rauschen hineingehen.
+    dieselbe Einstiegsfunktion, dieselbe Auswahl der Gewichte, dieselbe
+    Thread-Zahl. Als Aufnahme dient die Beispieldatei von pyannote (zwei
+    Sprecher); fehlt sie, fünf Sekunden Rauschen.
+
+    Danach ein Vergleich: pyannotes eigener Weg gegen die Abkürzung aus
+    ``diarization_speed`` -- das Ergebnis muss übereinstimmen. Die Zeiten
+    zeigen nebenbei, wie schnell der Rechner ist.
     """
-    import time
     import wave
 
     import numpy as np
@@ -865,51 +925,59 @@ def run_selftest() -> int:
         print('SELFTEST: Gewichte der Sprechererkennung fehlen.', flush=True)
         return SELFTEST_WEIGHTS_MISSING
     print(f'SELFTEST: Gewichte in {pyannote_dir}', flush=True)
+    print(f'SELFTEST: Threads {number_threads}, Prozessorkerne (logisch) {os.cpu_count()}',
+          flush=True)
 
     # Erst hier: der Import zieht torch nach.
-    from .pyannote_mp_worker import pyannote_proc_entrypoint
+    from .pyannote_mp_worker import pyannote_compare_entrypoint, pyannote_proc_entrypoint
 
     with TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-        wav_path = os.path.join(tmp, 'selftest.wav')
-        rate = 16000
-        samples = (np.random.default_rng(0).standard_normal(rate * 5) * 3000).astype(np.int16)
-        with wave.open(wav_path, 'wb') as wav:
-            wav.setnchannels(1)
-            wav.setsampwidth(2)
-            wav.setframerate(rate)
-            wav.writeframes(samples.tobytes())
+        sample = selftest_sample_wav()
+        if sample is not None:
+            wav_path = str(sample)
+            print(f'SELFTEST: Aufnahme {sample}', flush=True)
+        else:
+            wav_path = os.path.join(tmp, 'selftest.wav')
+            rate = 16000
+            samples = (np.random.default_rng(0).standard_normal(rate * 5) * 3000).astype(np.int16)
+            with wave.open(wav_path, 'wb') as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(rate)
+                wav.writeframes(samples.tobytes())
+            print('SELFTEST: Beispielaufnahme fehlt, nehme Rauschen.', flush=True)
 
-        ctx = mp.get_context('spawn')
-        q = ctx.Queue()
         args = {'device': 'cpu', 'audio_path': wav_path, 'num_speakers': None,
-                'pyannote_dir': str(pyannote_dir)}
-        proc = ctx.Process(target=pyannote_proc_entrypoint, args=(args, q))
-        proc.start()
-        try:
-            deadline = time.monotonic() + 600
-            while time.monotonic() < deadline:
-                try:
-                    msg = q.get(timeout=1)
-                except pyqueue.Empty:
-                    if not proc.is_alive():
-                        print(f'SELFTEST: Kindprozess unerwartet beendet (Code {proc.exitcode}).',
-                              flush=True)
-                        return 1
-                    continue
-                if not isinstance(msg, dict) or msg.get('type') != 'result':
-                    continue
-                if msg.get('ok'):
-                    print(f"SELFTEST: Sprechererkennung in Ordnung "
-                          f"({len(msg.get('segments', []))} Segmente).", flush=True)
-                    return 0
-                print(f"SELFTEST: {msg.get('error')}\n{msg.get('trace', '')}", flush=True)
-                return 1
-            print('SELFTEST: Zeitüberschreitung.', flush=True)
+                'pyannote_dir': str(pyannote_dir), 'threads': number_threads}
+        msg = _selftest_child(pyannote_proc_entrypoint, args)
+        if msg is None or not msg.get('ok'):
             return 1
-        finally:
-            proc.join(timeout=5)
-            if proc.is_alive():
-                proc.terminate()
+        segments = msg.get('segments', [])
+        speakers = len({seg['label'] for seg in segments})
+        print(f"SELFTEST: Sprechererkennung in Ordnung ({len(segments)} Segmente, "
+              f"{speakers} Sprecher, {msg.get('seconds', 0):.1f} s).", flush=True)
+        if sample is None:
+            return 0
+        if speakers < 2:
+            print('SELFTEST: In der Beispielaufnahme sprechen zwei Personen, '
+                  'erkannt wurde weniger.', flush=True)
+            return 1
+
+        msg = _selftest_child(pyannote_compare_entrypoint, args)
+        if msg is None or not msg.get('ok'):
+            return 1
+        print(f"SELFTEST: Vergleich: pyannote {msg['seconds_original']:.1f} s, "
+              f"Traudi {msg['seconds_fast']:.1f} s; Netzdurchläufe "
+              f"{msg['passes']} statt {msg['passes_original']}; "
+              f"Abweichung der Sprecherprofile {msg['centroid_diff']:.2e}", flush=True)
+        if not msg.get('installed'):
+            print('SELFTEST: Abkürzung für diese pyannote-Fassung nicht aktiv.', flush=True)
+            return 1
+        if not msg.get('identical'):
+            print('SELFTEST: Abkürzung liefert ein anderes Ergebnis als pyannote.', flush=True)
+            return 1
+        print('SELFTEST: Abkürzung liefert dasselbe Ergebnis wie pyannote.', flush=True)
+        return 0
 
 
 class TimeEntry(ctk.CTkEntry): # special Entry box to enter time in the format hh:mm:ss
@@ -3637,6 +3705,8 @@ class App(ctk.CTk):
             # Der Elternprozess hat bereits entschieden, welche Ablage die
             # vollständigen Gewichte hat (Nutzerverzeichnis oder Bündel).
             "pyannote_dir": str(resolve_pyannote_dir() or ''),
+            "threads": number_threads,
+            "skip_silent_embeddings": get_flag('pyannote_skip_silent_embeddings', True),
         }
         proc = ctx.Process(target=pyannote_proc_entrypoint, args=(args, q))
         proc.start()
@@ -3645,6 +3715,7 @@ class App(ctk.CTk):
         self._mp_queue = q
 
         diarization = None
+        remaining = progress_eta.RemainingTime()
         try:
             while True:
                 try:
@@ -3669,7 +3740,12 @@ class App(ctk.CTk):
                 elif mtype == "progress":
                     step_name = str(msg.get("step", ""))
                     progress_percent = int(msg.get("pct", 0))
-                    self.logr(f'{step_name}: {progress_percent}%')
+                    line = f'{step_name}: {progress_percent}%'
+                    seconds_left = remaining.update(step_name, progress_percent)
+                    if seconds_left is not None:
+                        line += ' – ' + t('progress_remaining',
+                                          time=progress_eta.format_duration(seconds_left))
+                    self.logr(line)
                     if step_name == 'segmentation':
                         self.set_progress(2, progress_percent * 0.3, job.speaker_detection)
                     elif step_name == 'embeddings':

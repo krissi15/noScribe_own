@@ -316,7 +316,8 @@ Die Datei entsteht beim ersten Start. Interessante Schlüssel:
 | Schlüssel | Bedeutung |
 |---|---|
 | `force_whisper_cpu`, `force_pyannote_cpu` | Grafikkarte umgehen |
-| `threads` | Anzahl der Prozessorkerne |
+| `threads` | Rechen-Threads für Whisper und Sprechererkennung (Vorgabe unter Windows: Zahl der physischen Kerne) |
+| `pyannote_skip_silent_embeddings` | Sprechererkennung überspringt leere Sprecherplätze (Vorgabe: an; nur zur Fehlersuche abschalten) |
 | `whisper_compute_type` | Rechengenauigkeit (`default`, `int8`, `float16`) |
 | `timestamp_interval`, `timestamp_color` | Aussehen der Zeitmarken |
 | `voice_activity_detection_threshold` | Empfindlichkeit der Sprachaktivitätserkennung |

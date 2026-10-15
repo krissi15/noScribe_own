@@ -190,3 +190,4 @@ en:
   queue_tt_open_partial_job: 'Open partial result in the noScribe Editor'
   transcript_exists_new_name: "The file %{old} already exists. To avoid overwriting it, Traudi saves the result as: %{new}"
   no_speech_detected: "(No speech was detected in the recording.)"
+  progress_remaining: "about %{time} left"

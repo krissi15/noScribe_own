@@ -188,3 +188,4 @@ ru:
   queue_run_button: 'Запустить'
   transcript_exists_new_name: "Файл %{old} уже существует. Чтобы не перезаписать его, Traudi сохраняет результат как: %{new}"
   no_speech_detected: "(В записи не обнаружена речь.)"
+  progress_remaining: "осталось около %{time}"

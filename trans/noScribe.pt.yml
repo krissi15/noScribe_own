@@ -188,3 +188,4 @@ pt:
   queue_run_button: 'Executar'
   transcript_exists_new_name: "O ficheiro %{old} já existe. Para não o substituir, o Traudi guarda o resultado como: %{new}"
   no_speech_detected: "(Não foi detetada fala na gravação.)"
+  progress_remaining: "faltam cerca de %{time}"
