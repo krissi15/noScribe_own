@@ -266,3 +266,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: pyinstaller/win_installer/*.exe
+
+      # Welche Fassungen tatsaechlich im Installer stecken. Steht als letzter
+      # Schritt da, damit es am Ende des Protokolls zu finden ist -- auch wenn
+      # vorher etwas scheitert. Grundlage fuer environments/constraints_*.txt.
+      - name: Report installed package versions
+        if: always()
+        run: |
+          Write-Host '--- pip freeze (Anfang) ---'
+          pip freeze --all
+          Write-Host '--- pip freeze (Ende) ---'
