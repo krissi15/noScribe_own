@@ -72,6 +72,13 @@ Sprache:
   englisch waren.
 - Die deutsche Übersetzung spricht einheitlich mit „Sie“ an.
 
+Lizenzen:
+
+- Neue Datei `MODELLE_LIZENZEN.md` (liegt dem Installer bei): Urheber, Quellen
+  und Lizenzen der Modelle -- pyannote community-1 und WeSpeaker (CC-BY-4.0),
+  PLDA (BUT), Whisper (MIT). Offene Punkte sind ausdrücklich benannt. Der
+  Über-Dialog nennt die Modelle und ihre Lizenzen.
+
 ## Version 0.7.6
 - Behebt: Die Sprechererkennung scheiterte in 0.7.5 an „No module named
   'scipy._external.array_api_compat.numpy.fft'". Dem Windows-Paket fehlte ein

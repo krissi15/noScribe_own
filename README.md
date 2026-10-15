@@ -418,6 +418,11 @@ Die Anwendung steht auf den Schultern von
 Lizenz: **GPL-3.0**, siehe [LICENSE.txt](LICENSE.txt). Wer Traudi weitergibt,
 muss den Quellcode und diesen Hinweis mitgeben.
 
+Die KI-Modelle haben eigene Lizenzen: die Gewichte der Sprechererkennung
+CC-BY-4.0 (pyannote, WeSpeaker), Whisper MIT. Namensnennung, Quellen und die
+noch offenen Fragen stehen in [MODELLE_LIZENZEN.md](MODELLE_LIZENZEN.md); die
+Datei liegt auch dem Installer bei.
+
 ### Zum Landeswappen
 
 Das Wappen von Rheinland-Pfalz ist ein Hoheitszeichen. Seine Verwendung durch
