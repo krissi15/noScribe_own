@@ -333,27 +333,27 @@ class MainWindow(QtWidgets.QMainWindow):
         file_toolbar.setIconSize(QtCore.QSize(24, 24))
         file_toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.addToolBar(file_toolbar)
-        file_menu = self.menuBar().addMenu("&File")
+        file_menu = self.menuBar().addMenu("&Datei")
 
-        open_file_action = QtGui.QAction(qta.icon('mdi.folder-open', color=icon_color), "Open file...", self)
-        open_file_action.setStatusTip("Open file")
+        open_file_action = QtGui.QAction(qta.icon('mdi.folder-open', color=icon_color), "Öffnen...", self)
+        open_file_action.setStatusTip("Transkript öffnen")
         open_file_action.setShortcut(QtGui.QKeySequence.Open)
         open_file_action.triggered.connect(self.file_open)
         file_menu.addAction(open_file_action)
         file_toolbar.addAction(open_file_action)
         
-        self.recent_files_menu = file_menu.addMenu("Recent Files")
+        self.recent_files_menu = file_menu.addMenu("Zuletzt geöffnet")
         self.update_recent_files_menu()  # Populate the recent files submenu initially
 
-        save_file_action = QtGui.QAction(qta.icon('mdi.content-save', color=icon_color), "Save", self)
-        save_file_action.setStatusTip("Save current file")
+        save_file_action = QtGui.QAction(qta.icon('mdi.content-save', color=icon_color), "Speichern", self)
+        save_file_action.setStatusTip("Transkript speichern")
         save_file_action.setShortcut(QtGui.QKeySequence.Save)
         save_file_action.triggered.connect(self.file_save)
         file_menu.addAction(save_file_action)
         file_toolbar.addAction(save_file_action)
 
-        saveas_file_action = QtGui.QAction(qta.icon('mdi.content-save-move', color=icon_color), "Save As...", self)
-        saveas_file_action.setStatusTip("Save current file to specified file")
+        saveas_file_action = QtGui.QAction(qta.icon('mdi.content-save-move', color=icon_color), "Speichern unter...", self)
+        saveas_file_action.setStatusTip("Unter anderem Namen oder als Text/WebVTT speichern")
         saveas_file_action.triggered.connect(self.file_saveas)
         file_menu.addAction(saveas_file_action)
         #file_toolbar.addAction(saveas_file_action)
@@ -361,8 +361,8 @@ class MainWindow(QtWidgets.QMainWindow):
         file_menu.addSeparator()
         file_toolbar.addSeparator()
         
-        audio_source_action = QtGui.QAction(qta.icon('mdi.waveform', color=icon_color), "Audio source...", self)
-        audio_source_action.setStatusTip("Locate the audio source file of the current transcript")
+        audio_source_action = QtGui.QAction(qta.icon('mdi.waveform', color=icon_color), "Audiodatei...", self)
+        audio_source_action.setStatusTip("Die zum Transkript gehörende Audiodatei suchen")
         audio_source_action.triggered.connect(self.open_audio_source)
         file_menu.addAction(audio_source_action)
 
@@ -374,9 +374,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addToolBar(noScribe_toolbar)
         # noScribe_menu = self.menuBar().addMenu("no&Scribe")
        
-        self.play_along_action = QtGui.QAction(qta.icon('mdi.volume-high', color=highlight_color), "Play/Pause Audio", self)      
+        self.play_along_action = QtGui.QAction(qta.icon('mdi.volume-high', color=highlight_color), "Wiedergabe/Pause", self)      
         self.play_along_action.setCheckable(True)
-        self.play_along_action.setStatusTip("Listen to the audio source of the current text")
+        self.play_along_action.setStatusTip("Die Aufnahme ab der aktuellen Stelle anhören")
         if platform.system() == 'Darwin': # = MAC
             self.play_along_action.setShortcut(QtGui.QKeySequence('Meta+Space'))
         else:
@@ -388,8 +388,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.playback_speed = QtWidgets.QComboBox()
         self.playback_speed.addItems(['60%', '80%', '100%', '120%', '135%', '150%', '180%', '200%'])
         self.playback_speed.setCurrentIndex(2) # default 100%
-        self.playback_speed.setToolTip("Playback speed")
-        self.playback_speed.setStatusTip("Set playback speed")
+        self.playback_speed.setToolTip("Wiedergabegeschwindigkeit")
+        self.playback_speed.setStatusTip("Wiedergabegeschwindigkeit einstellen")
         noScribe_toolbar.addWidget(self.playback_speed)
 
         self.rename_speakers_action = QtGui.QAction(
@@ -406,20 +406,20 @@ class MainWindow(QtWidgets.QMainWindow):
         edit_toolbar.setIconSize(QtCore.QSize(24, 24))
         edit_toolbar.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
         self.addToolBar(edit_toolbar)
-        edit_menu = self.menuBar().addMenu("&Edit")
+        edit_menu = self.menuBar().addMenu("&Bearbeiten")
 
         edit_menu.addAction(self.play_along_action)
         edit_menu.addSeparator()
 
-        undo_action = QtGui.QAction(qta.icon('mdi.undo', color=icon_color), "Undo", self)
-        undo_action.setStatusTip("Undo last change")
+        undo_action = QtGui.QAction(qta.icon('mdi.undo', color=icon_color), "Rückgängig", self)
+        undo_action.setStatusTip("Letzte Änderung rückgängig machen")
         undo_action.setShortcut(QtGui.QKeySequence.Undo)
         undo_action.triggered.connect(self.editor.undo)
         edit_toolbar.addAction(undo_action)
         edit_menu.addAction(undo_action)
 
-        redo_action = QtGui.QAction(qta.icon('mdi.redo', color=icon_color), "Redo", self)
-        redo_action.setStatusTip("Redo last change")
+        redo_action = QtGui.QAction(qta.icon('mdi.redo', color=icon_color), "Wiederholen", self)
+        redo_action.setStatusTip("Letzte Änderung wiederholen")
         redo_action.setShortcut(QtGui.QKeySequence.Redo)
         redo_action.triggered.connect(self.editor.redo)
         edit_toolbar.addAction(redo_action)
@@ -428,29 +428,29 @@ class MainWindow(QtWidgets.QMainWindow):
         edit_menu.addSeparator()
         edit_toolbar.addSeparator()
 
-        cut_action = QtGui.QAction(qta.icon('mdi.content-cut', color=icon_color), "Cut", self)
-        cut_action.setStatusTip("Cut selected text")
+        cut_action = QtGui.QAction(qta.icon('mdi.content-cut', color=icon_color), "Ausschneiden", self)
+        cut_action.setStatusTip("Markierten Text ausschneiden")
         cut_action.setShortcut(QtGui.QKeySequence.Cut)
         cut_action.triggered.connect(self.editor.cut)
         edit_toolbar.addAction(cut_action)
         edit_menu.addAction(cut_action)
 
-        copy_action = QtGui.QAction(qta.icon('mdi.content-copy', color=icon_color), "Copy", self)
-        copy_action.setStatusTip("Copy selected text")
+        copy_action = QtGui.QAction(qta.icon('mdi.content-copy', color=icon_color), "Kopieren", self)
+        copy_action.setStatusTip("Markierten Text kopieren")
         copy_action.setShortcut(QtGui.QKeySequence.Copy)
         copy_action.triggered.connect(self.editor.copy)
         edit_toolbar.addAction(copy_action)
         edit_menu.addAction(copy_action)
 
-        paste_action = QtGui.QAction(qta.icon('mdi.content-paste', color=icon_color), "Paste", self)
-        paste_action.setStatusTip("Paste from clipboard")
+        paste_action = QtGui.QAction(qta.icon('mdi.content-paste', color=icon_color), "Einfügen", self)
+        paste_action.setStatusTip("Aus der Zwischenablage einfügen")
         paste_action.setShortcut(QtGui.QKeySequence.Paste)
         paste_action.triggered.connect(self.editor.paste)
         edit_toolbar.addAction(paste_action)
         edit_menu.addAction(paste_action)
 
-        select_action = QtGui.QAction("Select all", self)
-        select_action.setStatusTip("Select all text")
+        select_action = QtGui.QAction("Alles markieren", self)
+        select_action.setStatusTip("Den ganzen Text markieren")
         select_action.setShortcut(QtGui.QKeySequence.SelectAll)
         select_action.triggered.connect(self.editor.selectAll)
         edit_menu.addAction(select_action)
@@ -458,9 +458,9 @@ class MainWindow(QtWidgets.QMainWindow):
         edit_menu.addSeparator()
         edit_toolbar.addSeparator()
         
-        find_action = QtGui.QAction(qta.icon('mdi.magnify', color=icon_color), "Find and Replace", self)
-        find_action.setStatusTip("Find (and replace) text")
-        find_action.setToolTip("Find (and replace) text")
+        find_action = QtGui.QAction(qta.icon('mdi.magnify', color=icon_color), "Suchen und Ersetzen", self)
+        find_action.setStatusTip("Text suchen (und ersetzen)")
+        find_action.setToolTip("Text suchen (und ersetzen)")
         find_action.setShortcuts([QtGui.QKeySequence.Find, QtGui.QKeySequence.Replace])
         find_action.triggered.connect(self.open_find_replace_dialog)
         edit_toolbar.addAction(find_action)
@@ -469,15 +469,15 @@ class MainWindow(QtWidgets.QMainWindow):
         edit_menu.addSeparator()
         edit_toolbar.addSeparator()
         
-        zoomIn_action = QtGui.QAction(qta.icon('mdi.plus-circle-outline', color=icon_color), "Zoom in", self)
-        zoomIn_action.setStatusTip("Zoom in")
+        zoomIn_action = QtGui.QAction(qta.icon('mdi.plus-circle-outline', color=icon_color), "Vergrößern", self)
+        zoomIn_action.setStatusTip("Schrift vergrößern")
         zoomIn_action.setShortcut(QtGui.QKeySequence.ZoomIn)
         zoomIn_action.triggered.connect(self.editor.zoomIn)
         edit_toolbar.addAction(zoomIn_action)
         edit_menu.addAction(zoomIn_action)
 
-        zoomOut_action = QtGui.QAction(qta.icon('mdi.minus-circle-outline', color=icon_color), "Zoom out", self)
-        zoomOut_action.setStatusTip("Zoom out")
+        zoomOut_action = QtGui.QAction(qta.icon('mdi.minus-circle-outline', color=icon_color), "Verkleinern", self)
+        zoomOut_action.setStatusTip("Schrift verkleinern")
         zoomOut_action.setShortcut(QtGui.QKeySequence.ZoomOut)
         zoomOut_action.triggered.connect(self.editor.zoomOut)
         edit_toolbar.addAction(zoomOut_action)
@@ -491,24 +491,24 @@ class MainWindow(QtWidgets.QMainWindow):
         format_menu = self.menuBar().addMenu("&Format")
 
         # We need references to these actions/settings to update as selection changes, so attach to self.
-        self.bold_action = QtGui.QAction(qta.icon('mdi.format-bold', color=icon_color), "Bold", self)
-        self.bold_action.setStatusTip("Bold")
+        self.bold_action = QtGui.QAction(qta.icon('mdi.format-bold', color=icon_color), "Fett", self)
+        self.bold_action.setStatusTip("Fett")
         self.bold_action.setShortcut(QtGui.QKeySequence.Bold)
         self.bold_action.setCheckable(True)
         self.bold_action.toggled.connect(lambda x: self.editor.setFontWeight(QtGui.QFont.Bold if x else QtGui.QFont.Normal))
         format_toolbar.addAction(self.bold_action)
         format_menu.addAction(self.bold_action)
 
-        self.italic_action = QtGui.QAction(qta.icon('mdi.format-italic', color=icon_color), "Italic", self)
-        self.italic_action.setStatusTip("Italic")
+        self.italic_action = QtGui.QAction(qta.icon('mdi.format-italic', color=icon_color), "Kursiv", self)
+        self.italic_action.setStatusTip("Kursiv")
         self.italic_action.setShortcut(QtGui.QKeySequence.Italic)
         self.italic_action.setCheckable(True)
         self.italic_action.toggled.connect(self.editor.setFontItalic)
         format_toolbar.addAction(self.italic_action)
         format_menu.addAction(self.italic_action)
 
-        self.underline_action = QtGui.QAction(qta.icon('mdi.format-underline', color=icon_color), "Underline", self)
-        self.underline_action.setStatusTip("Underline")
+        self.underline_action = QtGui.QAction(qta.icon('mdi.format-underline', color=icon_color), "Unterstrichen", self)
+        self.underline_action.setStatusTip("Unterstreichen (auch: Markierung unsicherer Wörter entfernen)")
         self.underline_action.setShortcut(QtGui.QKeySequence.Underline)
         self.underline_action.setCheckable(True)
         self.underline_action.toggled.connect(self.editor.setFontUnderline)
@@ -518,29 +518,29 @@ class MainWindow(QtWidgets.QMainWindow):
         format_menu.addSeparator()
         format_toolbar.addSeparator()
 
-        self.alignl_action = QtGui.QAction(qta.icon('mdi.format-align-left', color=icon_color), "Align left", self)
-        self.alignl_action.setStatusTip("Align text left")
+        self.alignl_action = QtGui.QAction(qta.icon('mdi.format-align-left', color=icon_color), "Linksbündig", self)
+        self.alignl_action.setStatusTip("Text linksbündig ausrichten")
         self.alignl_action.setCheckable(True)
         self.alignl_action.triggered.connect(lambda: self.editor.setAlignment(QtCore.Qt.AlignLeft))
         format_toolbar.addAction(self.alignl_action)
         format_menu.addAction(self.alignl_action)
 
-        self.alignc_action = QtGui.QAction(qta.icon('mdi.format-align-center', color=icon_color), "Align center", self)
-        self.alignc_action.setStatusTip("Align text center")
+        self.alignc_action = QtGui.QAction(qta.icon('mdi.format-align-center', color=icon_color), "Zentriert", self)
+        self.alignc_action.setStatusTip("Text zentrieren")
         self.alignc_action.setCheckable(True)
         self.alignc_action.triggered.connect(lambda: self.editor.setAlignment(QtCore.Qt.AlignCenter))
         format_toolbar.addAction(self.alignc_action)
         format_menu.addAction(self.alignc_action)
 
-        self.alignr_action = QtGui.QAction(qta.icon('mdi.format-align-right', color=icon_color), "Align right", self)
-        self.alignr_action.setStatusTip("Align text right")
+        self.alignr_action = QtGui.QAction(qta.icon('mdi.format-align-right', color=icon_color), "Rechtsbündig", self)
+        self.alignr_action.setStatusTip("Text rechtsbündig ausrichten")
         self.alignr_action.setCheckable(True)
         self.alignr_action.triggered.connect(lambda: self.editor.setAlignment(QtCore.Qt.AlignRight))
         format_toolbar.addAction(self.alignr_action)
         format_menu.addAction(self.alignr_action)
 
-        self.alignj_action = QtGui.QAction(qta.icon('mdi.format-align-justify', color=icon_color), "Justify", self)
-        self.alignj_action.setStatusTip("Justify text")
+        self.alignj_action = QtGui.QAction(qta.icon('mdi.format-align-justify', color=icon_color), "Blocksatz", self)
+        self.alignj_action.setStatusTip("Text im Blocksatz ausrichten")
         self.alignj_action.setCheckable(True)
         self.alignj_action.triggered.connect(lambda: self.editor.setAlignment(QtCore.Qt.AlignJustify))
         format_toolbar.addAction(self.alignj_action)
@@ -615,7 +615,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.block_signals(self._format_actions, False)
         
     def init_recent_files_menu(self):
-        self.recent_files_menu = self.menuBar().addMenu("Open Recent")
+        self.recent_files_menu = self.menuBar().addMenu("Zuletzt geöffnet")
         self.recent_file_actions = []  # Store actions to keep references
 
         # Load recent files from config
@@ -675,7 +675,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.audio_source = None
             self.provenance_meta = []
             self.tmp_audio_file = None
-            self.status.showMessage("Loading... please wait.")
+            self.status.showMessage("Wird geladen, bitte warten...")
             # avoid that all anchors become formatted as underlined and blue 
             doc = self.editor.document()
             # Das gesamte Transkript steht in Ankern (ts_...). Fest auf
@@ -686,7 +686,7 @@ class MainWindow(QtWidgets.QMainWindow):
             font_size = self.editor.font().pointSize()
             font = QtGui.QFont(default_font, font_size, QtGui.QFont.Weight.Normal, False)
             self.editor.setCurrentFont(font)
-            self.editor.setText("Loading... please wait.")
+            self.editor.setText("Wird geladen, bitte warten...")
             QtWidgets.QApplication.processEvents() # update GUI
             
             # QTextEdit does not understand "font-size: 0.8em", only "small":
@@ -720,8 +720,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 tags = parser.head.getElementsByName("audio_source")
                 if (len(tags) == 0) or (not os.path.exists(tags[0].content)): # audio source moved or missing
                     ret = QtWidgets.QMessageBox.warning(self, app_name, 
-                                                "Audio source file not found.\n"
-                                                "Do you want to search for it?",
+                                                "Die Audiodatei wurde nicht gefunden.\n"
+                                                "Möchten Sie sie suchen?",
                                                 QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel, 
                                                 QtWidgets.QMessageBox.Ok)
                     if ret == QtWidgets.QMessageBox.Cancel:
@@ -770,7 +770,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             with av.open(self.audio_source) as in_container:
                 if not in_container.streams.audio:
-                    raise RuntimeError('No audio stream found')
+                    raise RuntimeError('Die Datei enthält keine Tonspur.')
 
                 in_stream = in_container.streams.audio[0]
                 packet_iterator = in_container.demux(in_stream)
@@ -818,24 +818,24 @@ class MainWindow(QtWidgets.QMainWindow):
         except Exception as e:
             self.audio_decode_error_count = 0
             self._cleanup_temp_audio()
-            self.dialog_critical(f'Error creating temporary audio file.\n{e}')
+            self.dialog_critical(f'Die Audiodatei konnte nicht vorbereitet werden.\n{e}')
             return False
 
     def _show_audio_decode_status(self):
         if self.audio_decode_error_count <= 0:
             return
 
-        packet_label = 'packet' if self.audio_decode_error_count == 1 else 'packets'
         self.status.showMessage(
-            f'Loaded audio and skipped {self.audio_decode_error_count} invalid audio {packet_label}.',
+            f'Audio geladen; {self.audio_decode_error_count} fehlerhafte(s) '
+            f'Audiopaket(e) übersprungen.',
             7000,
         )
 
     def file_open(self):
         if self.editor.document().isModified():
             ret = QtWidgets.QMessageBox.warning(self, app_name, 
-                                                "The document has been modified.\n"
-                                                "Do you want to save your changes?",
+                                                "Das Transkript wurde geändert.\n"
+                                                "Möchten Sie die Änderungen speichern?",
                                                 QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard
                                                 | QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Save)
             if ret == QtWidgets.QMessageBox.Save:
@@ -844,7 +844,7 @@ class MainWindow(QtWidgets.QMainWindow):
             elif ret == QtWidgets.QMessageBox.Cancel:
                 return
             
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", "", "noScribe Transcripts (*.html)")
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Transkript öffnen", "", "Traudi-Transkripte (*.html)")
         if path == "": # cancled
             return
         else:
@@ -931,7 +931,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.path = path
             self.update_title()
         else:
-            self.dialog(f'Copy saved as: "{path}"')
+            self.dialog(f'Kopie gespeichert unter: "{path}"')
             
     def file_save(self) -> bool:
         """True, wenn das Dokument danach gesichert ist."""
@@ -949,12 +949,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def file_saveas(self):
         filter_string = (
-            "noScribe Transcript (*.html);;"
-            "Text only (*.txt);;"
-            "WebVTT Subtitles (also for EXMARaLDA) (*.vtt)"
+            "Traudi-Transkript (*.html);;"
+            "Nur Text (*.txt);;"
+            "WebVTT-Untertitel (auch für EXMARaLDA) (*.vtt)"
         )
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            None, "Save file", self.path, filter_string, "noScribe Transcript (*.html)"
+            None, "Speichern unter", self.path, filter_string, "Traudi-Transkript (*.html)"
         )
         if path == "": # canceled
             return False
@@ -969,14 +969,14 @@ class MainWindow(QtWidgets.QMainWindow):
         return not self.editor.document().isModified()
                     
     def open_audio_source(self):
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Audio source of the transcript", self.audio_source, "All (*.*)")
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Audiodatei zum Transkript", self.audio_source, "Alle Dateien (*.*)")
         if not path: # dialog is cancelled
             return False
         else:
             if not os.path.exists(path):
-                self.dialog_critical("File does not exist: " + path)
+                self.dialog_critical("Die Datei gibt es nicht: " + path)
                 return False    
-            self.status.showMessage("Loading... please wait.")
+            self.status.showMessage("Wird geladen, bitte warten...")
             self.audio_source = path
             ret = self._load_audio()                 
             self.status.clearMessage()
@@ -1164,8 +1164,8 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             if not self.tmp_audio_file or not os.path.exists(self.tmp_audio_file): # audio source moved or missing
                 ret = QtWidgets.QMessageBox.warning(self, app_name,
-                                            "Audio source file not found.\n"
-                                            "Do you want to search for it?",
+                                            "Die Audiodatei wurde nicht gefunden.\n"
+                                            "Möchten Sie sie suchen?",
                                             QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
                                             QtWidgets.QMessageBox.Ok)
                 if ret == QtWidgets.QMessageBox.Cancel:
@@ -1182,15 +1182,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if ts == '':
                 ret = QtWidgets.QMessageBox.warning(self, app_name,
-                                    "No audio timestamp found for current selection.\n"
-                                    "Do you want to start from the beginning?",
+                                    "An dieser Stelle gibt es keine Zeitmarke.\n"
+                                    "Möchten Sie von Anfang an abspielen?",
                                     QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
                                     QtWidgets.QMessageBox.Ok)
                 if ret == QtWidgets.QMessageBox.Cancel:
                     return
                 start, stop, pos = self.find_segment(None, from_pos=0)
                 if start == -1:
-                    raise Exception("No audio timestamps found in this document.")
+                    raise Exception("Dieses Transkript enthält keine Zeitmarken.")
                 resume = False
             else:
                 start, stop = decode_timestamp(ts)
@@ -1240,7 +1240,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         try:
-            self._check_media_error("Audio playback failed.")
+            self._check_media_error("Die Wiedergabe ist fehlgeschlagen.")
 
             if self.media_player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
                 self._stop_playback()
@@ -1328,15 +1328,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         changed = apply_renames(self.editor.document(), mapping)
         self.editor.document().setModified(True)
-        self.status.showMessage(f'{changed} Sprecherangaben geaendert.', 5000)
+        self.status.showMessage(f'{changed} Sprecherangaben geändert.', 5000)
 
     def closeEvent(self, event):
         self._stop_playback()
                     
         if self.editor.document().isModified():
             ret = QtWidgets.QMessageBox.warning(self, app_name, 
-                                                "The document has been modified.\n"
-                                                "Do you want to save your changes?",
+                                                "Das Transkript wurde geändert.\n"
+                                                "Möchten Sie die Änderungen speichern?",
                                                 QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard
                                                 | QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Save)
             if ret == QtWidgets.QMessageBox.Save:
@@ -1509,16 +1509,16 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.suppress_media_errors:
             return
 
-        error_message = self.media_player.errorString() or "Qt multimedia reported an unknown audio playback error."
+        error_message = self.media_player.errorString() or "Unbekannter Fehler bei der Wiedergabe."
         self.media_error_message = error_message
-        self.status.showMessage(f"Audio error: {error_message}", 5000)
+        self.status.showMessage(f"Audiofehler: {error_message}", 5000)
 
     def _on_media_status_changed(self, status):
         """Track the last observed Qt media status for diagnostics."""
         self.media_status = status
 
     def update_title(self):
-        self.setWindowTitle("%s - %s" % (os.path.basename(self.path) if self.path else "Untitled", app_name))
+        self.setWindowTitle("%s - %s" % (os.path.basename(self.path) if self.path else "Unbenannt", app_name))
 
     def open_find_replace_dialog(self):
         self.search_replace_dialog = SearchAndReplaceDialog(self)
@@ -1578,7 +1578,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
     def find_next(self, text, case_sensitive, whole_word):
         if text == '':
-            self.dialog_critical('Search text is empty!')
+            self.dialog_critical('Bitte einen Suchbegriff eingeben.')
             return
         try:
             flags = QtGui.QTextDocument.FindFlag(0)
@@ -1594,7 +1594,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if found_cursor.isNull():
                 # Ask if the user wants to continue searching from the top.
                 ret = QtWidgets.QMessageBox.question(
-                    self, "Find", "Reached the end of the document. Continue from the beginning?",
+                    self, "Suchen", "Ende des Transkripts erreicht. Am Anfang weitersuchen?",
                     QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No
                 )
 
@@ -1604,7 +1604,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     found_cursor = document.find(text, start_cursor, flags)
                     if found_cursor.isNull():
                         QtWidgets.QMessageBox.information(
-                            self, "Find", "No more occurrences found."
+                            self, "Suchen", "Keine weiteren Treffer."
                         )
                         return
                 else:
@@ -1615,11 +1615,11 @@ class MainWindow(QtWidgets.QMainWindow):
             # reposition the dialog if it overlaps the cursor
             self.reposition_dialog_if_necessary()
         except Exception as e:
-            self.dialog_critical(f"Error during find: {e}")
+            self.dialog_critical(f"Fehler beim Suchen: {e}")
             
     def replace(self, text, replace_with, case_sensitive, whole_word):
         if text == '':
-            self.dialog_critical('Search text is empty!')
+            self.dialog_critical('Bitte einen Suchbegriff eingeben.')
             return
         cursor = self.editor.textCursor()
         cursor.beginEditBlock()
@@ -1642,7 +1642,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.editor.setTextCursor(cursor)
             self.find_next(text, case_sensitive, whole_word)
         except Exception as e:
-            self.dialog_critical(f"Error during replace: {e}")
+            self.dialog_critical(f"Fehler beim Ersetzen: {e}")
         finally:
             cursor.endEditBlock()
             QtWidgets.QApplication.processEvents()
@@ -1757,12 +1757,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
             return changed_count
         except Exception as e:
-            self.dialog_critical(f"Error updating speaker markers: {e}")
+            self.dialog_critical(f"Fehler beim Aktualisieren der Sprecherangaben: {e}")
             return 0
 
     def replace_all(self, text: str, replace_with: str, case_sensitive: bool, whole_word: bool):
         if text == '':
-            self.dialog_critical('Search text is empty!')
+            self.dialog_critical('Bitte einen Suchbegriff eingeben.')
             return
         try:
             flags = QtGui.QTextDocument.FindFlag(0)
@@ -1793,9 +1793,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Provide a gentle notice when nothing was replaced anywhere
             if replacements == 0 and anchor_replacements == 0:
-                QtWidgets.QMessageBox.information(self, "Replace All", "No occurrences found to replace.")
+                QtWidgets.QMessageBox.information(self, "Alle ersetzen", "Keine Treffer zum Ersetzen gefunden.")
         except Exception as e:
-            self.dialog_critical(f"Error during replace all: {e}")
+            self.dialog_critical(f"Fehler beim Ersetzen: {e}")
                 
     def reposition_dialog_if_necessary(self):
         # Dialog may not exist yet or could be closed
@@ -1897,6 +1897,13 @@ if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName(app_name)
+    # Knöpfe der Standarddialoge ("Save", "Discard", "Cancel"), Dateidialoge
+    # und das Kontextmenü des Textfelds kommen von Qt selbst -- ohne dessen
+    # Übersetzung blieben sie englisch, mitten in einer deutschen Oberfläche.
+    qt_translator = QtCore.QTranslator(app)
+    if qt_translator.load(QtCore.QLocale(QtCore.QLocale.Language.German), 'qtbase', '_',
+                          QtCore.QLibraryInfo.path(QtCore.QLibraryInfo.LibraryPath.TranslationsPath)):
+        app.installTranslator(qt_translator)
     app.setStyle("Fusion")
     app.setPalette(app.style().standardPalette())
     # Vollstaendiges Stylesheet statt einzelner Ergaenzungen: sonst mischt Qt

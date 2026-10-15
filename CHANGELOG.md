@@ -65,6 +65,13 @@ Nachprüfbarkeit des Transkripts:
 - WebVTT: Die NOTE am Anfang enthält den ganzen Kopf, nicht nur dessen erste
   Zeile.
 
+Sprache:
+
+- Der Editor ist durchgehend deutsch: Menüs, Meldungen, „Suchen und
+  Ersetzen“ und die Standardknöpfe (Speichern/Verwerfen/Abbrechen), die bisher
+  englisch waren.
+- Die deutsche Übersetzung spricht einheitlich mit „Sie“ an.
+
 ## Version 0.7.6
 - Behebt: Die Sprechererkennung scheiterte in 0.7.5 an „No module named
   'scipy._external.array_api_compat.numpy.fft'". Dem Windows-Paket fehlte ein

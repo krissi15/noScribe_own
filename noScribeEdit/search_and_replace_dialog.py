@@ -4,26 +4,26 @@ class SearchAndReplaceDialog(QtWidgets.QDialog):
 
     def __init__(self, parent):
         super(SearchAndReplaceDialog, self).__init__(parent)
-        self.setWindowTitle("Find and Replace")
+        self.setWindowTitle("Suchen und Ersetzen")
 
         self.layout = QtWidgets.QVBoxLayout(self)
 
         # Input fields
-        self.search_label = QtWidgets.QLabel("Find:")
-        self.replace_label = QtWidgets.QLabel("Replace with:")
+        self.search_label = QtWidgets.QLabel("Suchen nach:")
+        self.replace_label = QtWidgets.QLabel("Ersetzen durch:")
 
         self.search_input = QtWidgets.QLineEdit()
         self.replace_input = QtWidgets.QLineEdit()
 
         # Options
-        self.case_sensitive_checkbox = QtWidgets.QCheckBox("Case Sensitive")
-        self.whole_word_checkbox = QtWidgets.QCheckBox("Whole Words Only")
+        self.case_sensitive_checkbox = QtWidgets.QCheckBox("Groß-/Kleinschreibung beachten")
+        self.whole_word_checkbox = QtWidgets.QCheckBox("Nur ganze Wörter")
 
         # Buttons
-        self.find_button = QtWidgets.QPushButton("Find Next")
-        self.replace_button = QtWidgets.QPushButton("Replace")
-        self.replace_all_button = QtWidgets.QPushButton("Replace All")
-        self.close_button = QtWidgets.QPushButton("Close")
+        self.find_button = QtWidgets.QPushButton("Weitersuchen")
+        self.replace_button = QtWidgets.QPushButton("Ersetzen")
+        self.replace_all_button = QtWidgets.QPushButton("Alle ersetzen")
+        self.close_button = QtWidgets.QPushButton("Schließen")
 
         # Layout setup
         self.layout.addWidget(self.search_label)

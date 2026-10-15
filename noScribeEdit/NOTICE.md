@@ -68,6 +68,14 @@ Wesentliche Änderungen gegenüber dem Ursprung:
 - **PyInstaller-Version an Traudi angeglichen** (`==6.14.1` statt `<=6.4.0`).
   Beide werden in derselben Umgebung gebaut; die ältere Fassung setzte sich
   auch für Traudi durch, und Traudi 0.7.4 startete deshalb nicht.
+- **Deutsche Oberfläche.** Menüs, Statuszeilen, Meldungen und der Dialog
+  „Suchen und Ersetzen“ sind deutsch (Sie-Form); Qts eigene Übersetzung
+  (`qtbase_de`) wird geladen, damit auch Standardknöpfe und Dateidialoge
+  deutsch sind.
+- **Herkunftsangaben bleiben erhalten.** `<meta name="traudi_…">` aus dem
+  Transkriptkopf (Prüfsumme der Aufnahme, Modell, Zeitpunkt) werden beim
+  Öffnen gemerkt und beim Speichern wieder eingesetzt; `QTextEdit` verwirft
+  sie sonst.
 
 ## Was nicht übernommen wurde
 
