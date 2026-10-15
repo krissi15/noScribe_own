@@ -52,8 +52,8 @@ from faster_whisper.audio import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
 
-from . import (audio, exception, model_download, privacy, progress_eta, transcription,
-               utils, whisper_args)
+from . import (audio, exception, model_download, privacy, progress_eta, provenance,
+               transcription, uncertainty, utils, whisper_args)
 from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
 from .theme import COLORS, apply_mode, theme_path
@@ -3103,6 +3103,18 @@ class App(ctk.CTk):
                 self.logn(t('start_transcription'), 'highlight')
                 self.logn(t('loading_whisper'))
 
+                # Herkunftsangaben für den Kopf (siehe provenance.py). Die
+                # Prüfsumme gilt der Originaldatei, nicht der WAV-Arbeitskopie.
+                created = provenance.created_now()
+                uncertain_threshold = uncertainty.threshold_from_config(
+                    get_config('uncertain_word_threshold', '0.5'))
+                model_name = provenance.model_name_of(job.whisper_model)
+                try:
+                    audio_sha256 = provenance.sha256_file(job.audio_file)
+                except OSError as e:
+                    audio_sha256 = ''
+                    self.logn(f'SHA-256: {e}', where='file')
+
                 info = None
                 transcription_success = False
                 while True:
@@ -3118,13 +3130,13 @@ class App(ctk.CTk):
                     tag.content = job.audio_file
                     d.head.appendChild(tag)
 
-                    # add app version:
-                    """ # removed because not really necessary
-                    tag = d.createElement("meta")
-                    tag.name = "noScribe_version"
-                    tag.content = app_version
-                    d.head.appendChild(tag)
-                    """
+                    # Herkunft, maschinenlesbar
+                    for meta_name, meta_content in provenance.meta_tags(
+                            app_version, created, model_name, audio_sha256).items():
+                        tag = d.createElement("meta")
+                        tag.name = meta_name
+                        tag.content = meta_content
+                        d.head.appendChild(tag)
 
                     #add WordSection1 (for line numbers in MS Word) as main_body
                     main_body = d.createElement('div')
@@ -3135,6 +3147,16 @@ class App(ctk.CTk):
                     p = d.createElement('p')
                     p.setStyle('font-weight', '600')
                     p.appendText(html.escape(Path(job.audio_file).stem, quote=False)) # use the name of the audio file (without extension) as the title
+                    main_body.appendChild(p)
+
+                    # Vermerk: ungeprüfter maschineller Entwurf. Steht als
+                    # eigener Absatz da, damit er nach der Prüfung im Editor
+                    # mit einem Griff gelöscht werden kann.
+                    p = d.createElement('p')
+                    s = d.createElement('span')
+                    s.setStyle('font-weight', '600')
+                    s.appendText(html.escape(t('doc_draft_notice'), quote=False))
+                    p.appendChild(s)
                     main_body.appendChild(p)
 
                     # subheader
@@ -3149,6 +3171,26 @@ class App(ctk.CTk):
                     s.appendText(html.escape(t('doc_header_audio', file=job.audio_file), quote=False))
                     br = d.createElement('br')
                     s.appendChild(br)
+
+                    s.appendText(html.escape(t('doc_header_provenance',
+                                               created=provenance.format_local(created),
+                                               model=provenance.describe_model(model_name)),
+                                             quote=False))
+                    br = d.createElement('br')
+                    s.appendChild(br)
+
+                    if audio_sha256:
+                        s.appendText(html.escape(t('doc_header_sha256', hash=audio_sha256),
+                                                 quote=False))
+                        br = d.createElement('br')
+                        s.appendChild(br)
+
+                    if uncertain_threshold > 0:
+                        s.appendText(html.escape(t('doc_header_uncertain',
+                                                   pct=round(uncertain_threshold * 100)),
+                                                 quote=False))
+                        br = d.createElement('br')
+                        s.appendChild(br)
 
                     s.appendText(f'({html.escape(option_info, quote=False)})')
 
@@ -3306,7 +3348,12 @@ class App(ctk.CTk):
                         # write text to the doc
                         # diarization (speaker detection)?
                         seg_text = segment.text
-                        seg_html = html.escape(seg_text, quote=False)
+                        # Der Segmenttext als HTML, unsichere Wörter unterstrichen
+                        # (siehe uncertainty.py). Alles, was davor kommt
+                        # (Sprecher, Zeitmarke), wird eigens escaped.
+                        body_html = uncertainty.segment_html(segment.text, segment.words,
+                                                             uncertain_threshold)
+                        seg_html = body_html
 
                         if job.speaker_detection != 'none':
                             new_speaker = find_speaker(diarization, start, end)
@@ -3315,11 +3362,11 @@ class App(ctk.CTk):
                                     prev_speaker = speaker
                                     speaker = new_speaker
                                     seg_text = f' {speaker}:{seg_text}'
-                                    seg_html = html.escape(seg_text, quote=False)                                
+                                    seg_html = html.escape(f' {speaker}:', quote=False) + body_html
                                 elif (speaker[:2] == '//') and (new_speaker == prev_speaker): # was overlapping speech and we are returning to the previous speaker 
                                     speaker = new_speaker
                                     seg_text = f'//{seg_text}'
-                                    seg_html = html.escape(seg_text, quote=False)
+                                    seg_html = '//' + body_html
                                 else: # new speaker, not overlapping
                                     if speaker[:2] == '//': # was overlapping speech, mark the end
                                         last_elem = p.lastElementChild
@@ -3336,33 +3383,33 @@ class App(ctk.CTk):
                                     speaker = new_speaker
                                     # add timestamp
                                     if job.timestamps:
-                                        seg_html = f'{speaker}: <span style="color: {job.timestamp_color}" >{ts}</span>{html.escape(seg_text, quote=False)}'
+                                        seg_html = f'{html.escape(speaker, quote=False)}: <span style="color: {job.timestamp_color}" >{ts}</span>{body_html}'
                                         seg_text = f'{speaker}: {ts}{seg_text}'
                                         last_timestamp_ms = start
                                     else:
                                         if job.file_ext != 'vtt': # in vtt files, speaker names are added as special voice tags so skip this here
                                             seg_text = f'{speaker}:{seg_text}'
-                                            seg_html = html.escape(seg_text, quote=False)
+                                            seg_html = html.escape(f'{speaker}:', quote=False) + body_html
                                         else:
-                                            seg_html = html.escape(seg_text, quote=False).lstrip()
+                                            seg_html = body_html.lstrip()
                                             seg_text = f'{speaker}:{seg_text}'
                                         
                             else: # same speaker
                                 if job.timestamps:
                                     if (start - last_timestamp_ms) > job.timestamp_interval:
-                                        seg_html = f' <span style=\"color: {job.timestamp_color}\" >{ts}</span>{html.escape(seg_text, quote=False)}'
+                                        seg_html = f' <span style=\"color: {job.timestamp_color}\" >{ts}</span>{body_html}'
                                         seg_text = f' {ts}{seg_text}'
                                         last_timestamp_ms = start
                                     else:
-                                        seg_html = html.escape(seg_text, quote=False)
+                                        seg_html = body_html
 
                         else: # no speaker detection
                             if job.timestamps and (first_segment or (start - last_timestamp_ms) > job.timestamp_interval):
-                                seg_html = f' <span style=\"color: {job.timestamp_color}\" >{ts}</span>{html.escape(seg_text, quote=False)}'
+                                seg_html = f' <span style=\"color: {job.timestamp_color}\" >{ts}</span>{body_html}'
                                 seg_text = f' {ts}{seg_text}'
                                 last_timestamp_ms = start
                             else:
-                                seg_html = html.escape(seg_text, quote=False)
+                                seg_html = body_html
                             # avoid leading whitespace in first paragraph
                             if first_segment:
                                 seg_text = seg_text.lstrip()

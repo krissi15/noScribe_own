@@ -274,6 +274,7 @@ def html_to_webvtt(html_string: str) -> str:
             super().__init__()
             self.body_found = False
             self.paragraphs = []
+            self.header_paragraphs = []  # Absätze vor dem ersten Segment
             self.segments = []
             self.current_paragraph = None
             self.current_segment = None
@@ -314,6 +315,8 @@ def html_to_webvtt(html_string: str) -> str:
             elif tag == "p":
                 if self.current_paragraph is not None:
                     self.paragraphs.append(self.current_paragraph["text"])
+                    if not self.segments:
+                        self.header_paragraphs.append(self.current_paragraph["text"])
                 self.current_paragraph = None
 
         def _append_text(self, target: dict, text: str):
@@ -349,8 +352,9 @@ def html_to_webvtt(html_string: str) -> str:
             return self.paragraphs[0]
 
         def get_info(self):
-            # The second paragraph contains the info field (including path).
-            return self.paragraphs[1]
+            # Alles zwischen Titel und erstem Segment: Vermerk "maschineller
+            # Entwurf", Programm, Pfad, Herkunftsangaben.
+            return "\n".join(p for p in self.header_paragraphs[1:] if p.strip())
 
         def get_segments(self):
             for item in self.segments:

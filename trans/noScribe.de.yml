@@ -129,8 +129,8 @@ de:
   # Error messages
   output_override: >
     Ein anderer Auftrag in der Warteschlange (wartend, laufend oder abgeschlossen) verwendet dieselbe Ausgabedatei.
-    Möchtest du die Ausgabedatei überschreiben?
-  err_setup: 'Während des Einrichtung ist ein Fehler aufgetreten. Bitte die Internetverbindung prüfen.'
+    Möchten Sie die Ausgabedatei überschreiben?
+  err_setup: 'Während der Einrichtung ist ein Fehler aufgetreten. Bitte die Internetverbindung prüfen.'
   err_invalid_time_string: 'Das ist keine korrekte Zeitangabe: "%{time}"'
   err_options: 'Fehler in den Optionen'
   err_unsupported_output_format: 'Fehler: Ausgabeformat "%{file_type}" wird nicht unterstützt.'
@@ -141,7 +141,7 @@ de:
   err_identifying_speakers: Fehler im 2. Schritt - Erkennung der Sprecher:innen. 
   err_loading_prompt: 'Warnung: Whisper-Prompt konnte nicht geladen werden.'
   transcription_canceled: 'Transkription wirklich abbrechen?'
-  queue_cancel_all_confirm: 'Dadurch werden alle unerledigten Aufträge in der Warteschlange abgebrochen. Möchtest du fortfahren?'
+  queue_cancel_all_confirm: 'Dadurch werden alle unerledigten Aufträge in der Warteschlange abgebrochen. Möchten Sie fortfahren?'
   err_user_cancelation: 'Abbruch durch Nutzer:in'
   err_whisper_main: 'whisper wurde mit folgendem Fehler beendet: %{e}'
   err_transcription: 'Fehler im 3. Schritt - Transkription'
@@ -171,6 +171,10 @@ de:
   # Doc contents
   doc_header: 'Transkribiert mit Traudi Vers. %{version}'
   doc_header_audio: 'Audiodatei: %{file}'
+  doc_draft_notice: "Maschineller Entwurf – nicht geprüft. Vor Verwendung vollständig mit der Aufnahme abgleichen."
+  doc_header_provenance: "Erstellt: %{created} | Modell: %{model}"
+  doc_header_sha256: "SHA-256 der Audiodatei: %{hash}"
+  doc_header_uncertain: "Unterstrichen: Wörter, bei denen die Spracherkennung unsicher war (unter %{pct} %). Auch nicht unterstrichene Stellen können falsch sein."
   pause_minutes: '(%{minutes} Minute[n] Pause)'
   pause_seconds: '(%{seconds} Sekunden Pause)'
   

@@ -176,6 +176,10 @@ en:
   # Doc contents
   doc_header: 'Transcribed with Traudi vers. %{version}'
   doc_header_audio: 'Audio file: %{file}'
+  doc_draft_notice: "Machine-generated draft – not reviewed. Check it completely against the recording before use."
+  doc_header_provenance: "Created: %{created} | Model: %{model}"
+  doc_header_sha256: "SHA-256 of the audio file: %{hash}"
+  doc_header_uncertain: "Underlined: words the speech recognition was unsure about (below %{pct} %). Text that is not underlined can be wrong, too."
   pause_minutes: '(%{minutes} minute[s] pause)'
   pause_seconds: '(%{seconds} seconds pause)'
   
