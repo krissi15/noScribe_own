@@ -60,6 +60,11 @@ Wesentliche Änderungen gegenüber dem Ursprung:
   stillschweigend weggelassen, wenn er nicht von Hand gebaut worden war: die
   Spec kopierte das Quellverzeichnis, während der Bau und die Anwendung eine
   fertige `noScribeEdit.exe` erwarteten.
+- **Speichern ohne Datenverlust** (`safe_save.py`). Die neue Fassung entsteht
+  als Hilfsdatei und ersetzt die alte in einem Schritt; scheitert das Speichern
+  beim Schließen oder vor dem Öffnen einer anderen Datei, bleibt das Fenster
+  offen. Vorher leerte `open(path, 'w')` die Datei vorab, und das Fenster schloss
+  auch nach einem Fehler -- die Korrekturen waren verloren.
 - **PyInstaller-Version an Traudi angeglichen** (`==6.14.1` statt `<=6.4.0`).
   Beide werden in derselben Umgebung gebaut; die ältere Fassung setzte sich
   auch für Traudi durch, und Traudi 0.7.4 startete deshalb nicht.

@@ -185,3 +185,5 @@ fr:
   # Boutons supplémentaires de l’UI
   send_queue: 'Envoyer la tâche à la file'
   queue_run_button: 'Exécuter'
+  transcript_exists_new_name: "Le fichier %{old} existe déjà. Pour ne pas l'écraser, Traudi enregistre le résultat sous : %{new}"
+  no_speech_detected: "(Aucune parole n'a été détectée dans l'enregistrement.)"

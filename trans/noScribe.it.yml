@@ -185,3 +185,5 @@ it:
   # Pulsanti UI aggiuntivi
   send_queue: 'Invia attività alla coda'
   queue_run_button: 'Esegui'
+  transcript_exists_new_name: "Il file %{old} esiste già. Per non sovrascriverlo, Traudi salva il risultato come: %{new}"
+  no_speech_detected: "(Nessun parlato rilevato nella registrazione.)"

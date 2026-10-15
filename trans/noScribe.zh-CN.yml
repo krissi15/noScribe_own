@@ -186,6 +186,8 @@ zh-CN: &defaults
   # 其他 UI 按钮
   send_queue: '发送任务到队列'
   queue_run_button: '运行'
+  transcript_exists_new_name: "文件 %{old} 已存在。为避免覆盖，Traudi 将结果保存为：%{new}"
+  no_speech_detected: "（录音中未检测到语音。）"
 
 zh:
   <<: *defaults

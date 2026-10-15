@@ -41,6 +41,9 @@ def pyannote_proc_entrypoint(args: dict, q):
       {"type":"result","ok":True,"segments":[{"start":ms,"end":ms,"label":str}]}
       {"type":"result","ok":False,"error":str,"trace":str}
     """
+    # Erst hier importiert: die Tests laden diese Datei einzeln, ohne Paket.
+    from . import privacy
+    privacy.go_offline()
     device = ''
     try:
         import torch
