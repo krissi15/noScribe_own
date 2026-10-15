@@ -179,6 +179,66 @@ jobs:
           }
           $global:LASTEXITCODE = 0
 
+      # Bisher geprueft wurde nur der dist-Ordner. Ob der Installer tut, was
+      # das README der IT verspricht -- Zielordner, Registry-Eintrag fuer die
+      # Erkennungsregel, Uebernahme der 32-Bit-Altinstallation bis 0.7.6,
+      # Selbsttest aus dem installierten Ordner, stille Deinstallation --,
+      # prueft dieser Schritt so, wie eine Softwareverteilung es taete.
+      - name: Installer test - upgrade from 0.7.6, install, selftest, uninstall
+        timeout-minutes: 25
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installer = (Get-ChildItem pyinstaller\win_installer\*.exe | Select-Object -First 1).FullName
+          $version = (Select-String noScribe\_version.py -Pattern '^__version__ = "([^"]+)"').Matches[0].Groups[1].Value
+          $dir = Join-Path $env:ProgramFiles 'Traudi'
+          $legacyDir = Join-Path ${env:ProgramFiles(x86)} 'Traudi'
+          $key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Traudi'
+          $legacyKey = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Traudi'
+
+          # 1. Die letzte 32-Bit-Fassung vorinstallieren, wie sie im Feld liegt.
+          gh release download v0.7.6 --repo $env:GITHUB_REPOSITORY --pattern '*.exe' --dir legacy
+          $haveLegacy = $LASTEXITCODE -eq 0
+          if ($haveLegacy) {
+            $old = (Get-ChildItem legacy\*.exe | Select-Object -First 1).FullName
+            Start-Process $old -ArgumentList '/S' -Wait
+            if (-not (Test-Path "$legacyDir\Traudi.exe")) { throw 'Altinstallation 0.7.6 wurde nicht angelegt.' }
+            Write-Host "Altinstallation 0.7.6 liegt in $legacyDir"
+          } else {
+            Write-Warning 'v0.7.6 nicht ladbar -- die Uebernahme der Altinstallation bleibt ungeprueft.'
+          }
+
+          # 2. Die neue Fassung still darueber installieren.
+          $p = Start-Process $installer -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installer endete mit Exit-Code $($p.ExitCode)." }
+          if (-not (Test-Path "$dir\Traudi.exe")) { throw "Traudi.exe fehlt in $dir." }
+          $shown = (Get-ItemProperty $key -ErrorAction Stop).DisplayVersion
+          if ($shown -ne $version) { throw "DisplayVersion ist '$shown', erwartet '$version'." }
+          Write-Host "Installiert nach $dir, DisplayVersion $shown"
+          if ($haveLegacy) {
+            if (Test-Path "$legacyDir\Traudi.exe") { throw 'Die 32-Bit-Altinstallation ist noch da.' }
+            if (Test-Path $legacyKey) { throw 'Der Registry-Eintrag der Altinstallation ist noch da.' }
+            Write-Host 'Altinstallation wurde entfernt.'
+          }
+
+          # 3. Selbsttest aus dem installierten Ordner.
+          $s = Start-Process "$dir\Traudi.exe" -ArgumentList '--selftest' -Wait -PassThru -NoNewWindow `
+                 -RedirectStandardOutput installed.out -RedirectStandardError installed.err
+          Get-Content installed.out
+          if ($s.ExitCode -ne 0 -and -not ($s.ExitCode -eq 3 -and -not $env:HF_TOKEN)) {
+            Get-Content installed.err
+            throw "Selbsttest der installierten Fassung fehlgeschlagen (Exit-Code $($s.ExitCode))."
+          }
+
+          # 4. Still deinstallieren. Der NSIS-Deinstaller kopiert sich nach
+          #    %TEMP% und kehrt sofort zurueck -- deshalb auf das Ergebnis warten.
+          Start-Process "$dir\uninstall.exe" -ArgumentList '/S' -Wait
+          for ($i = 0; $i -lt 90 -and (Test-Path "$dir\Traudi.exe"); $i++) { Start-Sleep -Seconds 2 }
+          if (Test-Path "$dir\Traudi.exe") { throw 'Deinstallation hat Traudi.exe nicht entfernt.' }
+          if (Test-Path $key) { throw 'Deinstallation hat den Registry-Eintrag nicht entfernt.' }
+          Write-Host 'Deinstallation sauber.'
+          $global:LASTEXITCODE = 0
+
       - uses: actions/upload-artifact@v4
         with:
           name: traudi-windows-installer-${{ github.event.inputs.variant || 'cpu' }}

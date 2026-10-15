@@ -9,5 +9,5 @@ Wer die Version ändert, ändert sie nur hier -- `tests/test_version.py` prüft,
 dass nirgends eine zweite Fassung stehen bleibt.
 """
 
-__version__ = "0.7.6"
+__version__ = "0.7.7"
 __year__ = "2026"

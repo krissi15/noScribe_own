@@ -36,6 +36,7 @@ from enum import Enum
 from functools import partial
 from pathlib import Path
 from subprocess import Popen, run
+import tempfile
 from tempfile import TemporaryDirectory
 from threading import Thread
 from typing import Optional
@@ -51,7 +52,7 @@ from faster_whisper.audio import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
 
-from . import audio, exception, model_download, transcription, utils, whisper_args
+from . import audio, exception, model_download, privacy, transcription, utils, whisper_args
 from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
 from .theme import COLORS, apply_mode, theme_path
@@ -233,6 +234,15 @@ def get_config(key: str, default) -> str:
         config[key] = default
     return config[key]
 
+
+def get_flag(key: str, default: bool) -> bool:
+    """Ein Schalter aus der config.yml -- `true`, `'True'`, `ja`, `1` ...
+
+    Siehe privacy.as_bool: Traudi schreibt Strings, eine Softwareverteilung
+    gern echte YAML-Booleans. Beides muss gehen.
+    """
+    return privacy.as_bool(get_config(key, 'True' if default else 'False'), default)
+
 # Erscheinungsmodus. Muss vor dem Bau des ersten Fensters feststehen: die
 # Stellen, die am ThemeManager vorbeigehen (Warteschlangen-Zeilen auf einer
 # tk.Canvas, Text-Markierungen, Kurzinfos), lesen COLORS beim Erzeugen aus.
@@ -241,8 +251,8 @@ def get_config(key: str, default) -> str:
 appearance_mode = apply_mode(str(get_config('appearance_mode', DEFAULT_MODE)).lower())
 ctk.set_appearance_mode(appearance_mode)
 
-force_pyannote_cpu = get_config('force_pyannote_cpu', '').lower() == 'true'
-force_whisper_cpu = get_config('force_whisper_cpu', '').lower() == 'true'
+force_pyannote_cpu = get_flag('force_pyannote_cpu', False)
+force_whisper_cpu = get_flag('force_whisper_cpu', False)
 
 # Nutzerseitiger Ablageort für die Diarisierungs-Gewichte.
 #
@@ -264,9 +274,18 @@ def resolve_pyannote_dir() -> Optional[Path]:
     Das Nutzerverzeichnis hat Vorrang: wer dort nachgelegt hat, will die
     nachgelegte Fassung benutzen.
     """
-    if model_download.pyannote_weights_present(user_pyannote_dir):
-        return user_pyannote_dir
     bundled = model_download.bundled_pyannote_dir()
+    if model_download.pyannote_weights_present(user_pyannote_dir):
+        # Die Anleitung (err_pyannote_weights_missing) nennt nur die beiden
+        # .bin-Dateien. Pipeline.from_pretrained braucht aber auch
+        # config.yaml und plda/ -- ohne sie scheiterte jeder Auftrag mit
+        # Sprechererkennung. Fehlendes wird aus dem Bündel ergänzt.
+        try:
+            model_download.prepare_user_pyannote_dir(bundled, user_pyannote_dir)
+        except OSError as e:
+            logger.warning('Konnte pyannote-Konfiguration nicht ergänzen: %s', e)
+        if (user_pyannote_dir / 'config.yaml').is_file():
+            return user_pyannote_dir
     if model_download.pyannote_weights_present(bundled):
         return bundled
     return None
@@ -699,10 +718,13 @@ def create_transcription_job(audio_file=None, transcript_file=None, start_time=N
     job.whisper_beam_size = get_config('whisper_beam_size', 1)
     job.whisper_temperature = get_config('whisper_temperature', 0.0)
     job.whisper_compute_type = get_config('whisper_compute_type', 'default')
-    job.timestamp_interval = get_config('timestamp_interval', 60_000)
+    try:
+        job.timestamp_interval = int(get_config('timestamp_interval', 60_000))
+    except (TypeError, ValueError):
+        job.timestamp_interval = 60_000
     job.timestamp_color = get_config('timestamp_color', COLORS['timestamp'])
     job.pause_marker = get_config('pause_seconds_marker', '.')
-    job.auto_save = False if get_config('auto_save', 'True') == 'False' else True
+    job.auto_save = get_flag('auto_save', True)
         
     job.vad_threshold = float(get_config('voice_activity_detection_threshold', '0.5'))
     
@@ -814,6 +836,9 @@ Examples:
 
 
 SELFTEST_WEIGHTS_MISSING = 3
+
+# Logdateien werden nach so vielen Tagen gelöscht.
+LOG_RETENTION_DAYS = 30
 
 
 def run_selftest() -> int:
@@ -1763,8 +1788,12 @@ class App(ctk.CTk):
         self.logn('https://github.com/kaixxx/noScribe', link='https://github.com/kaixxx/noScribe#readme')
         self.logn(t('welcome_instructions'))
         
-        # check for new releases
-        if get_config('check_for_update', 'True') == 'True':
+        # Nach neuen Versionen fragen -- standardmäßig AUS. Traudi verspricht,
+        # nach der Einrichtung ohne Internet zu arbeiten, und Updates kommen in
+        # der Justiz über die Softwareverteilung. Bewusst ein neuer Schlüssel:
+        # das alte `check_for_update` steht in jeder bestehenden config.yml
+        # schon auf 'True', weil get_config die Vorgabe dort hineinschreibt.
+        if get_flag('online_update_check', False):
             try:
                 # This fork, not upstream: otherwise an upstream noScribe release
                 # would announce itself as a new Traudi version.
@@ -2732,7 +2761,7 @@ class App(ctk.CTk):
                     and job \
                     and job.file_ext == 'html' \
                     and job.status == JobStatus.FINISHED \
-                    and get_config('auto_edit_transcript', 'True') == 'True':
+                    and get_flag('auto_edit_transcript', True):
                 self.launch_editor(job.transcript_file)
             elif queue_jobs_processed > 1 and not getattr(self, '_headless', False):
                 # if more than one job has been processed, switch to queue tab for an overview 
@@ -2757,6 +2786,17 @@ class App(ctk.CTk):
         job.set_running()
         self.update_queue_table()
         
+        # Nie ein vorhandenes Transkript überschreiben. Die Namen werden zwar
+        # bei der Dateiauswahl eindeutig gemacht, aber nur dort: dieselbe
+        # Aufnahme ein zweites Mal gestartet oder ein Auftrag wiederholt, und
+        # die erste -- womöglich schon korrigierte -- Fassung war weg.
+        # Nicht im Kommandozeilenbetrieb: dort ist die Zieldatei ausdrücklich
+        # vorgegeben, und ein Skript erwartet das Ergebnis genau dort.
+        if not getattr(self, '_headless', False) and os.path.exists(job.transcript_file):
+            taken = job.transcript_file
+            job.transcript_file = str(utils.create_unique_filenames([Path(taken)])[0])
+            self.logn(t('transcript_exists_new_name', old=taken, new=job.transcript_file), 'highlight')
+
         tmpdir = TemporaryDirectory('noScribe')
         tmp_audio_file = os.path.join(tmpdir.name, 'tmp_audio.wav')
         orig_transcript_file = job.transcript_file
@@ -2778,7 +2818,10 @@ class App(ctk.CTk):
             # Create log file
             if not os.path.exists(f'{config_dir}/log'):
                 os.makedirs(f'{config_dir}/log')
-            self.log_file = open(f'{config_dir}/log/{Path(job.transcript_file).stem}.log', 'w', encoding="utf-8")
+            # Benannt nach dem Zeitpunkt, nicht nach dem Transkript: der
+            # Dateiname einer Vernehmung trägt oft Namen oder ein Aktenzeichen.
+            log_name = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            self.log_file = open(f'{config_dir}/log/{log_name}.log', 'w', encoding="utf-8")
 
             # Log job configuration
             self.logn(f'whisper beam size: {job.whisper_beam_size}', where='file')
@@ -3023,7 +3066,7 @@ class App(ctk.CTk):
                     # header               
                     p = d.createElement('p')
                     p.setStyle('font-weight', '600')
-                    p.appendText(Path(job.audio_file).stem) # use the name of the audio file (without extension) as the title
+                    p.appendText(html.escape(Path(job.audio_file).stem, quote=False)) # use the name of the audio file (without extension) as the title
                     main_body.appendChild(p)
 
                     # subheader
@@ -3035,7 +3078,7 @@ class App(ctk.CTk):
                     br = d.createElement('br')
                     s.appendChild(br)
 
-                    s.appendText(t('doc_header_audio', file=job.audio_file))
+                    s.appendText(html.escape(t('doc_header_audio', file=job.audio_file), quote=False))
                     br = d.createElement('br')
                     s.appendChild(br)
 
@@ -3186,7 +3229,7 @@ class App(ctk.CTk):
                             a.name = f'ts_{orig_audio_start_pause}_{orig_audio_end_pause}_{speaker}'
                             a.appendText(pause_str)
                             p.appendChild(a)
-                            self.log(pause_str)
+                            self.log(pause_str, where='screen')
                             if first_segment:
                                 self.logn()
                                 self.logn()
@@ -3262,7 +3305,10 @@ class App(ctk.CTk):
                         a = d.createElementFromHTML(a_html)
                         p.appendChild(a)
 
-                        self.log(seg_text)
+                        # Nur auf den Bildschirm. In der Logdatei lag sonst eine
+                        # vollständige Klartextkopie jeder Vernehmung, außerhalb
+                        # der Akte und ohne Löschfrist.
+                        self.log(seg_text, where='screen')
                         
                         first_segment = False
 
@@ -3301,6 +3347,17 @@ class App(ctk.CTk):
                             job.has_partial_transcript = job.status != JobStatus.FINISHED
                         else:
                             job.has_partial_transcript = False
+                            if transcription_success:
+                                # Kein einziges Segment (Stille, Rauschen, falscher
+                                # Kanal). Bisher wurde dann gar nichts geschrieben,
+                                # aber trotzdem "gespeichert unter" gemeldet -- und
+                                # eine alte Datei gleichen Namens als Ergebnis
+                                # ausgegeben.
+                                note = d.createElement('p')
+                                note.appendText(t('no_speech_detected'))
+                                main_body.appendChild(note)
+                                save_doc()
+                                self.logn(t('no_speech_detected'), 'highlight')
                         if transcription_success:
                             if job.transcript_file != orig_transcript_file: # used alternative filename because saving under the initial name failed
                                 self.logn(
@@ -3330,6 +3387,13 @@ class App(ctk.CTk):
         finally:
             # hide progress
             self.set_progress(0, 0)
+            # Die WAV-Kopie der Aufnahme sofort entfernen, nicht erst, wenn der
+            # Garbage Collector dazu kommt -- und mit Wiederholung, weil ein
+            # gerade beendeter Kindprozess sie unter Windows kurz festhält.
+            if privacy.remove_tree(tmpdir.name):
+                finalizer = getattr(tmpdir, '_finalizer', None)
+                if finalizer is not None:
+                    finalizer.detach()  # schon weg; sonst meldet cleanup() später einen Fehler
             
     def create_job(self, enqueue=False):
         try:
@@ -3414,7 +3478,7 @@ class App(ctk.CTk):
         Umgekehrt würden eigene Namen die Grundbegriffe verdrängen.
         """
         terms = []
-        if str(get_config('use_builtin_vocabulary', 'True')) == 'True':
+        if get_flag('use_builtin_vocabulary', True):
             with impres.as_file(impres.files("prompts")) as prompts_dir:
                 terms += whisper_args.load_vocabulary_file(
                     Path(prompts_dir) / 'vocab_justiz_de.txt')
@@ -3452,7 +3516,7 @@ class App(ctk.CTk):
             vad_threshold=vad_threshold,
             vocabulary=self._vocabulary(),
             condition_on_previous_text=(
-                str(get_config('whisper_condition_on_previous_text', 'False')) == 'True'),
+                get_flag('whisper_condition_on_previous_text', False)),
             locale=config.get("locale", "de"),
         )
         args["audio_path"] = tmp_audio_file
@@ -4070,6 +4134,12 @@ def noScribeMain():
 
     # Parse command line arguments
     args = parse_cli_args()
+
+    # Was frühere Läufe liegen gelassen haben: Logdateien (bis 0.7.6 mit dem
+    # vollständigen Transkripttext) und Kopien von Aufnahmen aus abgebrochenen
+    # oder abgestürzten Aufträgen.
+    privacy.remove_stale(Path(config_dir) / 'log', '*.log', max_age_hours=24 * LOG_RETENTION_DAYS)
+    privacy.remove_stale(tempfile.gettempdir(), 'tmp*noScribe', max_age_hours=48)
 
     # Handle special case: show available models
     if args.help_models:

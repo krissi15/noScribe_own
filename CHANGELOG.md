@@ -1,5 +1,31 @@
 # Traudi
 
+## Version 0.7.7
+Datenschutz und Schutz vor Datenverlust, nach einer Prüfung durch sieben
+Fachperspektiven.
+
+- Keine Nutzungsstatistik mehr an Dritte: pyannote 4 schickte bei jeder
+  Sprechererkennung Sitzungskennung, Audiodauer und Sprecherzahl an
+  otel.pyannote.ai. Abgeschaltet, ebenso die Telemetrie von huggingface_hub.
+- Logdateien enthalten keinen Transkripttext mehr, heißen nach dem Zeitpunkt
+  und werden nach 30 Tagen gelöscht.
+- Die WAV-Arbeitskopie der Aufnahme wird nach jedem Auftrag gelöscht, Reste
+  aus Abbrüchen beim nächsten Start.
+- Die Online-Abfrage nach neuen Versionen ist standardmäßig aus.
+- Ein vorhandenes Transkript wird nicht mehr überschrieben -- auch nicht, wenn
+  dieselbe Aufnahme ein zweites Mal läuft.
+- Editor: Speichern ersetzt die Datei erst, wenn die neue Fassung vollständig
+  geschrieben ist; scheitert es, bleibt das Fenster offen. Vorher konnten beim
+  Schließen alle Korrekturen verloren gehen.
+- Ohne erkannte Sprache entsteht trotzdem eine Datei mit Hinweis, statt einer
+  falschen Erfolgsmeldung.
+- Nachgelegte Diarisierungs-Gewichte im Benutzerordner funktionieren jetzt.
+- Schalter in der config.yml dürfen auch `true`/`false` lauten, ohne dass
+  Traudi wortlos nicht startet.
+- Installer: 64-Bit nach `C:\Program Files\Traudi`, Registry in der
+  64-Bit-Ansicht. Eine Altinstallation unter `Program Files (x86)` wird
+  automatisch entfernt.
+
 ## Version 0.7.6
 - Behebt: Die Sprechererkennung scheiterte in 0.7.5 an „No module named
   'scipy._external.array_api_compat.numpy.fft'". Dem Windows-Paket fehlte ein

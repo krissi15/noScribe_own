@@ -7,6 +7,7 @@ import traceback
 from dataclasses import asdict, is_dataclass
 from i18n import t
 
+from . import privacy
 from .whisper_args import build_prompt, resolve_compute_type
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ def whisper_proc_entrypoint(args: dict, q):
       {"type": "result", "ok": True, "segments": [...], "info": {...}}
       {"type": "result", "ok": False, "error": str, "trace": str}
     """
+    privacy.go_offline()
     try:
         # Import heavy libs only in the child
         from faster_whisper import WhisperModel
@@ -154,7 +156,9 @@ def whisper_proc_entrypoint(args: dict, q):
         # von der Fassung ab. Ein Kanal ist vorhersagbar.
         prompt = build_prompt(style_example, args.get("vocabulary", []))
         if prompt:
-            plog("debug", f"initial_prompt: {prompt}")
+            # Nur die Länge: der Prompt enthält die eigene Wortliste,
+            # und die kann Namen von Beteiligten tragen.
+            plog("debug", f"initial_prompt: {len(prompt)} Zeichen")
 
         # Perform transcription (streaming)
         #

@@ -185,3 +185,5 @@ ja:
   # 追加のUIボタン
   send_queue: 'ジョブをキューに送る'
   queue_run_button: '実行'
+  transcript_exists_new_name: "ファイル %{old} は既に存在します。上書きを避けるため、Traudi は結果を次の名前で保存します: %{new}"
+  no_speech_detected: "（録音から音声は検出されませんでした。）"

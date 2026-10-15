@@ -12,8 +12,17 @@ AdvancedHTMLParser -- ausgerechnet beim Einrichten, wo man die Gewichte
 holt, bevor alles andere installiert ist.
 
 Wer die Anwendung will, schreibt `from noScribe import main`.
+
+Eines passiert hier aber doch, und zwar absichtlich: die Telemetrie der
+Bibliotheken wird abgeschaltet. Jeder Prozess, der irgendetwas aus diesem
+Paket lädt -- die Anwendung, die Kindprozesse für Whisper und pyannote,
+`scripts/fetch_models.py` --, läuft durch diese Datei, und zwar bevor
+pyannote importiert wird. Siehe noScribe/privacy.py.
 """
 
+from noScribe import privacy as _privacy
 from noScribe._version import __version__, __year__
+
+_privacy.disable_telemetry()
 
 __all__ = ['__version__', '__year__']

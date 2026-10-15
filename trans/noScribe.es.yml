@@ -185,3 +185,5 @@ es:
   # Botones adicionales de la UI
   send_queue: 'Enviar tarea a la cola'
   queue_run_button: 'Ejecutar'
+  transcript_exists_new_name: "El archivo %{old} ya existe. Para no sobrescribirlo, Traudi guarda el resultado como: %{new}"
+  no_speech_detected: "(No se detectó habla en la grabación.)"

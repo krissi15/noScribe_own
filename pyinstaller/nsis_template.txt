@@ -19,7 +19,7 @@
 !define LICENSE_TXT "#*license_txt*#"
 !define INSTALLER_NAME "#*installer_name*#"
 !define MAIN_APP_EXE "Traudi.exe"
-; Dateien liegen unter $PROGRAMFILES und die Registry unter HKLM. Die
+; Dateien liegen unter $PROGRAMFILES64 und die Registry unter HKLM. Die
 ; Verknuepfungen muessen deshalb ebenfalls maschinenweit angelegt werden,
 ; sonst sieht sie nur der installierende Administrator.
 !define INSTALL_TYPE "SetShellVarContext all"
@@ -49,13 +49,18 @@ OutFile "${INSTALLER_NAME}"
 RequestExecutionLevel admin
 BrandingText "${APP_NAME}"
 XPStyle on
-InstallDirRegKey "${REG_ROOT}" "${REG_APP_PATH}" ""
-InstallDir "$PROGRAMFILES\Traudi"
+; 64-Bit, obwohl makensis selbst ein 32-Bit-Installer ist. Bis 0.7.6 stand hier
+; $PROGRAMFILES: Traudi landete in "C:\Program Files (x86)", die Registry unter
+; WOW6432Node -- und die Erkennungsregel aus dem README griff ins Leere.
+; Kein InstallDirRegKey: der laeuft vor .onInit noch in der 32-Bit-Ansicht und
+; wuerde bei einer Altinstallation wieder den (x86)-Ordner vorschlagen.
+InstallDir "$PROGRAMFILES64\Traudi"
 
 ######################################################################
 
 !include "MUI.nsh"
 !include "MUI2.nsh"
+!include "x64.nsh"
 
 ; Muss vor den MUI_PAGE_*-Makros stehen, sonst greift es nicht.
 !define MUI_ICON   "${APP_ICON}"
@@ -97,7 +102,39 @@ InstallDir "$PROGRAMFILES\Traudi"
 
 ######################################################################
 
+Function .onInit
+  ${IfNot} ${RunningX64}
+    MessageBox MB_ICONSTOP "Traudi benoetigt ein 64-Bit-Windows." /SD IDOK
+    SetErrorLevel 2
+    Abort
+  ${EndIf}
+  ; Ab hier liest und schreibt der Installer die Registry so, wie eine
+  ; 64-Bit-Anwendung sie sieht -- dort sucht auch die Softwareverteilung.
+  SetRegView 64
+FunctionEnd
+
+Function un.onInit
+  SetRegView 64
+FunctionEnd
+
+######################################################################
+
 Section -MainProgram
+
+; Altinstallation bis 0.7.6 (32-Bit-Installer, "Program Files (x86)",
+; Registry unter WOW6432Node). Wird ohne Rueckfrage entfernt, sonst gaebe es
+; Traudi zweimal -- mit zwei Startmenue-Eintraegen und zwei Programmordnern.
+SetRegView 32
+ReadRegStr $0 HKLM "${UNINSTALL_PATH}" "UninstallString"
+SetRegView 64
+StrCmp $0 "" legacyDone
+IfFileExists "$0" 0 legacyDone
+    GetFullPathName $1 "$0\.."
+    ExecWait '"$0" /S _?=$1'
+    ; Mit _?= bleibt der Deinstaller selbst liegen.
+    Delete "$0"
+    RMDir "$1"
+legacyDone:
 
 ; Uninstall system wide
 

@@ -32,6 +32,7 @@ from PyQt6 import QtCore
 from PyQt6 import QtGui
 from PyQt6 import QtWidgets
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
+from safe_save import write_text_atomic
 from search_and_replace_dialog import SearchAndReplaceDialog
 from speaker_dialog import SpeakerRenameDialog, apply_renames, collect_speakers
 import traudi_theme
@@ -644,10 +645,13 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg.show()
 
     def dialog_critical(self, s):
+        # Modal (exec statt show): eine Fehlermeldung beim Speichern muss
+        # gelesen sein, bevor das Programm weitermacht -- vorher verschwand
+        # sie mit dem Fenster, das gleich darauf schloss.
         dlg = QtWidgets.QMessageBox(self)
         dlg.setText(s)
         dlg.setIcon(QtWidgets.QMessageBox.Critical)
-        dlg.show()
+        dlg.exec()
 
     def _file_open(self, path):
         # Ein anderes Transkript heisst: die Markierung des vorigen ist
@@ -825,7 +829,8 @@ class MainWindow(QtWidgets.QMainWindow):
                                                 QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard
                                                 | QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Save)
             if ret == QtWidgets.QMessageBox.Save:
-                self.file_save()
+                if not self.file_save():
+                    return  # nicht gesichert -- das offene Dokument bleibt
             elif ret == QtWidgets.QMessageBox.Cancel:
                 return
             
@@ -903,8 +908,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             raise TypeError(f'Invalid file type "{file_ext}".')
 
-        with open(path, 'w', encoding="utf-8") as f:
-            f.write(file_txt)
+        write_text_atomic(path, file_txt)
             
         if file_ext == 'html':
             self.editor.document().setModified(False)
@@ -913,7 +917,8 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.dialog(f'Copy saved as: "{path}"')
             
-    def file_save(self):
+    def file_save(self) -> bool:
+        """True, wenn das Dokument danach gesichert ist."""
         if self.path is None:
             # If we do not have a path, we need to use Save As.
             return self.file_saveas()
@@ -921,7 +926,10 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             self._file_save(self.path)
         except Exception as e:
-            self.dialog_critical(str(e))
+            self.dialog_critical(f'Speichern fehlgeschlagen -- die Datei ist '
+                                 f'unverändert geblieben.\n\n{self.path}\n\n{e}')
+            return False
+        return not self.editor.document().isModified()
 
     def file_saveas(self):
         filter_string = (
@@ -933,11 +941,16 @@ class MainWindow(QtWidgets.QMainWindow):
             None, "Save file", self.path, filter_string, "noScribe Transcript (*.html)"
         )
         if path == "": # canceled
-            return
+            return False
         try:
             self._file_save(path)
         except Exception as e:
-            self.dialog_critical(str(e))
+            self.dialog_critical(f'Speichern fehlgeschlagen -- die Datei ist '
+                                 f'unverändert geblieben.\n\n{path}\n\n{e}')
+            return False
+        # Als .txt/.vtt gespeichert ist nur eine Kopie; das Transkript selbst
+        # gilt dann weiter als ungesichert.
+        return not self.editor.document().isModified()
                     
     def open_audio_source(self):
         path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Audio source of the transcript", self.audio_source, "All (*.*)")
@@ -1311,7 +1324,12 @@ class MainWindow(QtWidgets.QMainWindow):
                                                 QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard
                                                 | QtWidgets.QMessageBox.Cancel, QtWidgets.QMessageBox.Save)
             if ret == QtWidgets.QMessageBox.Save:
-                self.file_save()
+                if not self.file_save():
+                    # Speichern gescheitert oder abgebrochen: offen bleiben.
+                    # Bisher schloss das Fenster trotzdem, und alle
+                    # Korrekturen waren verloren.
+                    event.ignore()
+                    return
             elif ret == QtWidgets.QMessageBox.Cancel:
                 event.ignore()
                 return

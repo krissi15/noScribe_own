@@ -57,10 +57,17 @@ Softwareverteilung stehen unter [Zentrale Verteilung](#zentrale-verteilung).
 
 Dieser Abschnitt richtet sich an die IT, nicht an Anwenderinnen und Anwender.
 
-Traudi wird **maschinenweit** installiert: nach `%ProgramFiles%\Traudi`, mit
-Registrierung unter `HKLM`. Der Installer fordert Administratorrechte
-ausdrücklich an (`RequestExecutionLevel admin`). Die Verknüpfungen im Startmenü
-und auf dem Desktop werden für **alle** Benutzenden des Rechners angelegt.
+Traudi wird **maschinenweit** installiert: nach `%ProgramFiles%\Traudi`
+(64-Bit, also `C:\Program Files\Traudi`), mit Registrierung unter `HKLM` in der
+64-Bit-Ansicht. Der Installer fordert Administratorrechte ausdrücklich an
+(`RequestExecutionLevel admin`) und bricht auf 32-Bit-Windows ab. Die
+Verknüpfungen im Startmenü und auf dem Desktop werden für **alle** Benutzenden
+des Rechners angelegt.
+
+> **Bis Version 0.7.6** landete Traudi versehentlich in
+> `C:\Program Files (x86)\Traudi` und unter `WOW6432Node`. Ab 0.7.7 entfernt der
+> Installer eine solche Altinstallation automatisch und ohne Rückfrage, bevor er
+> die neue Fassung einrichtet.
 
 ### Befehle
 
@@ -86,6 +93,9 @@ Schlüssel: HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninsta
 Wert:      DisplayVersion
 Methode:   Zeichenfolgenvergleich, "ist gleich" <version>
 ```
+
+In Intune bei der Regel *„Associated with a 32-bit app on 64-bit clients“* **Nein**
+wählen (Vorgabe) -- der Schlüssel liegt in der 64-Bit-Ansicht.
 
 Unter demselben Schlüssel stehen außerdem `DisplayName`, `Publisher`,
 `EstimatedSize`, `DisplayIcon` sowie `QuietUninstallString` — Letzteres macht
@@ -310,11 +320,38 @@ Die Datei entsteht beim ersten Start. Interessante Schlüssel:
 | `whisper_compute_type` | Rechengenauigkeit (`default`, `int8`, `float16`) |
 | `timestamp_interval`, `timestamp_color` | Aussehen der Zeitmarken |
 | `voice_activity_detection_threshold` | Empfindlichkeit der Sprachaktivitätserkennung |
-| `check_for_update` | Update-Prüfung beim Start abschalten |
+| `online_update_check` | Beim Start auf GitHub nach neuen Versionen fragen (Vorgabe: aus) |
 
 Eigene Whisper-Modelle können nach
 `%LOCALAPPDATA%\Traudi\Traudi\whisper_models\<name>` gelegt werden und
 erscheinen dann im Modell-Menü.
+
+---
+
+## Datenschutz
+
+Traudi verarbeitet Aufnahmen ausschließlich auf dem eigenen Rechner.
+
+- **Kein Netzverkehr im Betrieb.** Die Nutzungsstatistik, die pyannote 4 von Haus
+  aus an `otel.pyannote.ai` sendet, ist abgeschaltet, ebenso die Telemetrie von
+  `huggingface_hub`. Die Arbeitsprozesse für Transkription und
+  Sprechererkennung laufen zusätzlich im Offline-Modus. Die Abfrage nach neuen
+  Versionen ist standardmäßig aus (`online_update_check`). Netz braucht nur der
+  einmalige Download des Sprachmodells.
+- **Logdateien enthalten keinen Transkripttext**, nur technische Angaben, und
+  sind nach dem Zeitpunkt benannt, nicht nach dem Transkript. Sie werden nach
+  30 Tagen gelöscht. (Bis 0.7.6 stand dort der vollständige Text; solche
+  Altdateien verschwinden mit derselben Frist.)
+- **Die WAV-Arbeitskopie** einer Aufnahme wird nach jedem Auftrag gelöscht;
+  Reste aus abgebrochenen oder abgestürzten Läufen beim nächsten Start.
+- **Ein vorhandenes Transkript wird nie überschrieben.** Gibt es die Zieldatei
+  schon, speichert Traudi unter einem neuen Namen und sagt das im Verlauf an.
+
+Für ein Löschkonzept: Traudi legt pro Benutzerkonto ab unter
+`%LOCALAPPDATA%\Traudi\Traudi\` die Einstellungen (`config.yml`), die
+Logdateien (`log\`), heruntergeladene Modelle (`whisper_models\`) und ggf.
+nachgelegte Diarisierungs-Gewichte (`pyannote\`). Die Deinstallation entfernt
+nur den Programmordner, nicht diese Benutzerdaten.
 
 ---
 
