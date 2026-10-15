@@ -8,11 +8,17 @@ on:
 # deshalb in unter einer Minute. Der Installer-Bau bleibt bewusst ein eigener
 # Workflow -- der dauert Größenordnungen länger und soll nicht bei jedem Push
 # anspringen.
+# Nur lesen: die Tests brauchen weder Schreibrechte noch Secrets.
+permissions:
+  contents: read
+
 jobs:
   pytest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:

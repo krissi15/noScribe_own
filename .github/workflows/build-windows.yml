@@ -29,7 +29,12 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
     steps:
+      # Der Bau installiert und startet fremden Code (pip-Pakete, PyInstaller).
+      # Das Schreib-Token soll dabei nicht in .git/config liegen; die Schritte,
+      # die es brauchen, bekommen es ausdrücklich.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
