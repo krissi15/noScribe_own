@@ -173,6 +173,7 @@ pt:
   doc_draft_notice: "Rascunho gerado automaticamente – não revisto. Compare-o integralmente com a gravação antes de o utilizar."
   doc_header_provenance: "Criado: %{created} | Modelo: %{model}"
   doc_header_sha256: "SHA-256 do ficheiro de áudio: %{hash}"
+  doc_header_uncertain: "Sublinhado: palavras em que o reconhecimento de voz estava inseguro (abaixo de %{pct} %). O texto não sublinhado também pode estar errado."
   pause_minutes: '(%{minutes} minuto[s] pausa)'
   pause_seconds: '(%{seconds} segundos de pausa)'
   

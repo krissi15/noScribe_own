@@ -172,6 +172,7 @@ es:
   doc_draft_notice: "Borrador generado automáticamente – sin revisar. Contrástelo por completo con la grabación antes de usarlo."
   doc_header_provenance: "Creado: %{created} | Modelo: %{model}"
   doc_header_sha256: "SHA-256 del archivo de audio: %{hash}"
+  doc_header_uncertain: "Subrayado: palabras en las que el reconocimiento de voz no estaba seguro (menos del %{pct} %). El texto no subrayado también puede ser erróneo."
   pause_minutes: '(%{minutes} minuto[s] pausa)'
   pause_seconds: '(%{seconds} segundos de pausa)'
   

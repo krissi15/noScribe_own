@@ -58,6 +58,10 @@ Nachprüfbarkeit des Transkripts:
   (`certutil -hashfile <Datei> SHA256`). Dieselben Angaben stehen
   maschinenlesbar als `<meta name="traudi_…">` im HTML; der Editor behält sie
   beim Speichern bei.
+- Wörter, bei denen sich die Spracherkennung unsicher war, sind unterstrichen
+  (Erkennungssicherheit unter 50 %, einstellbar über `uncertain_word_threshold`).
+  Der Kopf erklärt die Markierung; Strg+U im Editor nimmt sie nach der Prüfung
+  weg. Das README behauptete bisher, erfundener Text falle beim Lesen auf.
 - WebVTT: Die NOTE am Anfang enthält den ganzen Kopf, nicht nur dessen erste
   Zeile.
 

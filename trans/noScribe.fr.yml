@@ -172,6 +172,7 @@ fr:
   doc_draft_notice: "Brouillon généré automatiquement – non vérifié. À comparer intégralement avec l'enregistrement avant toute utilisation."
   doc_header_provenance: "Créé : %{created} | Modèle : %{model}"
   doc_header_sha256: "SHA-256 du fichier audio : %{hash}"
+  doc_header_uncertain: "Souligné : mots pour lesquels la reconnaissance vocale était incertaine (moins de %{pct} %). Le texte non souligné peut aussi être erroné."
   pause_minutes: '(%{minutes} minute[s] pause)'
   pause_seconds: '(%{seconds} secondes pause)'
   

@@ -173,6 +173,7 @@ zh-CN: &defaults
   doc_draft_notice: "机器生成的草稿——未经审核。使用前请与录音逐一核对。"
   doc_header_provenance: "创建时间：%{created} | 模型：%{model}"
   doc_header_sha256: "音频文件的 SHA-256：%{hash}"
+  doc_header_uncertain: "下划线：语音识别把握不足的词（低于 %{pct} %）。未加下划线的内容也可能有误。"
   pause_minutes: '(%{minutes} 分钟 暂停)'
   pause_seconds: '(%{seconds} 秒暂停)'
   

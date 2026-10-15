@@ -53,7 +53,7 @@ from faster_whisper.vad import VadOptions, get_speech_timestamps
 from i18n import t
 
 from . import (audio, exception, model_download, privacy, progress_eta, provenance,
-               transcription, utils, whisper_args)
+               transcription, uncertainty, utils, whisper_args)
 from ._version import __version__, __year__
 from .CTkToolTips import CTkToolTip
 from .theme import COLORS, apply_mode, theme_path
@@ -3106,6 +3106,8 @@ class App(ctk.CTk):
                 # Herkunftsangaben für den Kopf (siehe provenance.py). Die
                 # Prüfsumme gilt der Originaldatei, nicht der WAV-Arbeitskopie.
                 created = provenance.created_now()
+                uncertain_threshold = uncertainty.threshold_from_config(
+                    get_config('uncertain_word_threshold', '0.5'))
                 model_name = provenance.model_name_of(job.whisper_model)
                 try:
                     audio_sha256 = provenance.sha256_file(job.audio_file)
@@ -3179,6 +3181,13 @@ class App(ctk.CTk):
 
                     if audio_sha256:
                         s.appendText(html.escape(t('doc_header_sha256', hash=audio_sha256),
+                                                 quote=False))
+                        br = d.createElement('br')
+                        s.appendChild(br)
+
+                    if uncertain_threshold > 0:
+                        s.appendText(html.escape(t('doc_header_uncertain',
+                                                   pct=round(uncertain_threshold * 100)),
                                                  quote=False))
                         br = d.createElement('br')
                         s.appendChild(br)
@@ -3339,7 +3348,12 @@ class App(ctk.CTk):
                         # write text to the doc
                         # diarization (speaker detection)?
                         seg_text = segment.text
-                        seg_html = html.escape(seg_text, quote=False)
+                        # Der Segmenttext als HTML, unsichere Wörter unterstrichen
+                        # (siehe uncertainty.py). Alles, was davor kommt
+                        # (Sprecher, Zeitmarke), wird eigens escaped.
+                        body_html = uncertainty.segment_html(segment.text, segment.words,
+                                                             uncertain_threshold)
+                        seg_html = body_html
 
                         if job.speaker_detection != 'none':
                             new_speaker = find_speaker(diarization, start, end)
@@ -3348,11 +3362,11 @@ class App(ctk.CTk):
                                     prev_speaker = speaker
                                     speaker = new_speaker
                                     seg_text = f' {speaker}:{seg_text}'
-                                    seg_html = html.escape(seg_text, quote=False)                                
+                                    seg_html = html.escape(f' {speaker}:', quote=False) + body_html
                                 elif (speaker[:2] == '//') and (new_speaker == prev_speaker): # was overlapping speech and we are returning to the previous speaker 
                                     speaker = new_speaker
                                     seg_text = f'//{seg_text}'
-                                    seg_html = html.escape(seg_text, quote=False)
+                                    seg_html = '//' + body_html
                                 else: # new speaker, not overlapping
                                     if speaker[:2] == '//': # was overlapping speech, mark the end
                                         last_elem = p.lastElementChild
@@ -3369,33 +3383,33 @@ class App(ctk.CTk):
                                     speaker = new_speaker
                                     # add timestamp
                                     if job.timestamps:
-                                        seg_html = f'{speaker}: <span style="color: {job.timestamp_color}" >{ts}</span>{html.escape(seg_text, quote=False)}'
+                                        seg_html = f'{html.escape(speaker, quote=False)}: <span style="color: {job.timestamp_color}" >{ts}</span>{body_html}'
                                         seg_text = f'{speaker}: {ts}{seg_text}'
                                         last_timestamp_ms = start
                                     else:
                                         if job.file_ext != 'vtt': # in vtt files, speaker names are added as special voice tags so skip this here
                                             seg_text = f'{speaker}:{seg_text}'
-                                            seg_html = html.escape(seg_text, quote=False)
+                                            seg_html = html.escape(f'{speaker}:', quote=False) + body_html
                                         else:
-                                            seg_html = html.escape(seg_text, quote=False).lstrip()
+                                            seg_html = body_html.lstrip()
                                             seg_text = f'{speaker}:{seg_text}'
                                         
                             else: # same speaker
                                 if job.timestamps:
                                     if (start - last_timestamp_ms) > job.timestamp_interval:
-                                        seg_html = f' <span style=\"color: {job.timestamp_color}\" >{ts}</span>{html.escape(seg_text, quote=False)}'
+                                        seg_html = f' <span style=\"color: {job.timestamp_color}\" >{ts}</span>{body_html}'
                                         seg_text = f' {ts}{seg_text}'
                                         last_timestamp_ms = start
                                     else:
-                                        seg_html = html.escape(seg_text, quote=False)
+                                        seg_html = body_html
 
                         else: # no speaker detection
                             if job.timestamps and (first_segment or (start - last_timestamp_ms) > job.timestamp_interval):
-                                seg_html = f' <span style=\"color: {job.timestamp_color}\" >{ts}</span>{html.escape(seg_text, quote=False)}'
+                                seg_html = f' <span style=\"color: {job.timestamp_color}\" >{ts}</span>{body_html}'
                                 seg_text = f' {ts}{seg_text}'
                                 last_timestamp_ms = start
                             else:
-                                seg_html = html.escape(seg_text, quote=False)
+                                seg_html = body_html
                             # avoid leading whitespace in first paragraph
                             if first_segment:
                                 seg_text = seg_text.lstrip()

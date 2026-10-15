@@ -292,8 +292,17 @@ Sehr lange Dateien können dazu führen, dass sich das Modell in Wiederholungen
 verfängt. Teilen Sie die Aufnahme über *Start* und *Stopp* in Abschnitte.
 
 Bei sehr leisen oder verrauschten Passagen erfindet das Modell gelegentlich
-Text („Halluzination"). Solche Stellen fallen im Editor auf, weil sie inhaltlich
-nicht passen.
+Text („Halluzination"). Solcher Text ist oft gerade plausibel formuliert und
+fällt beim Lesen **nicht** zuverlässig auf. Hinweise gibt das Transkript selbst:
+Wörter, bei denen sich die Spracherkennung unsicher war, sind unterstrichen
+(Schwelle einstellbar, siehe `uncertain_word_threshold`). Eine fehlende
+Unterstreichung heißt aber nicht, dass die Stelle stimmt -- maßgeblich bleibt
+der Abgleich mit der Aufnahme.
+
+Jedes Transkript trägt deshalb unter dem Titel den Vermerk „Maschineller
+Entwurf – nicht geprüft". Im Kopf stehen außerdem Erstellungszeitpunkt, Modell
+und die SHA-256-Prüfsumme der Audiodatei; damit lässt sich belegen, aus welcher
+Aufnahme der Text stammt (`certutil -hashfile <Datei> SHA256`).
 
 Meldet Traudi `Transcription worker exited unexpectedly (code 3221226505)`,
 erzwingen Sie die CPU: `force_whisper_cpu: 'True'` in der Konfiguration
@@ -317,6 +326,7 @@ Die Datei entsteht beim ersten Start. Interessante Schlüssel:
 |---|---|
 | `force_whisper_cpu`, `force_pyannote_cpu` | Grafikkarte umgehen |
 | `threads` | Rechen-Threads für Whisper und Sprechererkennung (Vorgabe unter Windows: Zahl der physischen Kerne) |
+| `uncertain_word_threshold` | Wörter unter dieser Erkennungssicherheit werden unterstrichen (Vorgabe: `0.5`, `0` schaltet ab) |
 | `pyannote_skip_silent_embeddings` | Sprechererkennung überspringt leere Sprecherplätze (Vorgabe: an; nur zur Fehlersuche abschalten) |
 | `whisper_compute_type` | Rechengenauigkeit (`default`, `int8`, `float16`) |
 | `timestamp_interval`, `timestamp_color` | Aussehen der Zeitmarken |
