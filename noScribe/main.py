@@ -3204,8 +3204,23 @@ class App(ctk.CTk):
                     prev_speaker = ''
                     last_auto_save = datetime.datetime.now()
 
-                    def save_doc():
-                        nonlocal last_auto_save
+                    autosave_failed = False
+
+                    def save_doc(final: bool = True):
+                        """Schreibt den aktuellen Stand.
+
+                        Zwischenstände (final=False) bleiben bei EINEM
+                        Dateinamen: Scheitert einer -- meist hält der
+                        Virenscanner oder OneDrive die Datei kurz fest --, folgt
+                        der nächste Versuch einige Sekunden später. Bisher
+                        wechselte Traudi beim ersten Fehlschlag dauerhaft auf
+                        einen neuen Namen; bei einer langen Aufnahme lagen am
+                        Ende sieben Dateien da, sechs davon unvollständig.
+                        Erst wenn der Endstand auch nach mehreren Versuchen
+                        nicht geschrieben werden kann (z. B. Datei in Word
+                        offen), weicht Traudi auf einen anderen Namen aus.
+                        """
+                        nonlocal last_auto_save, autosave_failed
                         txt = ''
                         if job.file_ext == 'html':
                             txt = d.asHTML()
@@ -3215,29 +3230,32 @@ class App(ctk.CTk):
                             txt = utils.html_to_webvtt(d.asHTML())
                         else:
                             raise TypeError(f'Invalid file type "{job.file_ext}".')
+                        if txt == '':
+                            return
+                        last_auto_save = datetime.datetime.now()
+                        if utils.write_text_with_retry(job.transcript_file, txt,
+                                                       attempts=10 if final else 1):
+                            return
+                        if not final:
+                            if not autosave_failed:
+                                autosave_failed = True
+                                self.logn('Zwischenspeichern fehlgeschlagen, '
+                                          'nächster Versuch in wenigen Sekunden.', where='file')
+                            return
+                        # Endstand: auf einen anderen Dateinamen ausweichen.
                         try:
-                            if txt != '':
-                                with open(job.transcript_file, 'w', encoding="utf-8") as f:
-                                    f.write(txt)
-                                    f.flush()
-                                last_auto_save = datetime.datetime.now()
-                        except Exception:
-                            # other error while saving, maybe the file is already open in Word and cannot be overwritten
-                            # try saving to a different filename
-                            try:
-                                job.transcript_file = utils.create_unique_filenames([Path(job.transcript_file)])[0]
-                            except RuntimeError as e:
-                                # File name already exists and a new one could not
-                                # be found.
-                                raise RuntimeError(t('rescue_saving_failed')) from e
+                            job.transcript_file = utils.create_unique_filenames([Path(job.transcript_file)])[0]
+                        except RuntimeError as e:
+                            # File name already exists and a new one could not
+                            # be found.
+                            raise RuntimeError(t('rescue_saving_failed')) from e
 
-                            # `job.transcript_file` is for sure a `Path` here as we
-                            # called `create_unique_filenames`.
-                            job.transcript_file.write_text(txt, encoding="utf-8")
+                        # `job.transcript_file` is for sure a `Path` here as we
+                        # called `create_unique_filenames`.
+                        job.transcript_file.write_text(txt, encoding="utf-8")
 
-                            self.logn()
-                            self.logn(t('rescue_saving', file=job.transcript_file), 'error', link=f'file://{job.transcript_file}')
-                            last_auto_save = datetime.datetime.now()
+                        self.logn()
+                        self.logn(t('rescue_saving', file=job.transcript_file), 'error', link=f'file://{job.transcript_file}')
 
                     # Prepare VAD data locally for pause adjustment (audio is 16kHz mono after ffmpeg conversion)
                     try:
@@ -3431,7 +3449,7 @@ class App(ctk.CTk):
                         nonlocal last_auto_save
                         if job.auto_save:
                             if (datetime.datetime.now() - last_auto_save).total_seconds() > 5:
-                                save_doc()
+                                save_doc(final=False)
                                 job.has_partial_transcript = True
 
                         # per-segment progress based on total duration

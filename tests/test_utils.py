@@ -91,3 +91,43 @@ def test_html_to_webvtt_note_covers_the_whole_header(utils):
     assert 'Maschineller Entwurf' in note
     assert 'SHA-256 der Audiodatei: abc' in note
     assert 'Nachsatz' not in note
+
+
+# --- Speichern während der Transkription ---------------------------------------
+#
+# Anlass: Bei einer 74-Minuten-Aufnahme legte 0.7.6 sieben Dateien an
+# (..._1, ..._1_1, ...), sechs davon unvollständig. Jeder kurz gescheiterte
+# Zwischenstand (Virenscanner/OneDrive halten die Datei fest) wechselte
+# dauerhaft auf einen neuen Namen.
+
+def test_write_with_retry_writes(utils, tmp_path):
+    target = tmp_path / 't.html'
+    assert utils.write_text_with_retry(target, 'Ä', attempts=1)
+    assert target.read_text(encoding='utf-8') == 'Ä'
+
+
+def test_write_with_retry_survives_a_short_lock(utils, tmp_path, monkeypatch):
+    target = tmp_path / 't.html'
+    real_open = open
+    calls = []
+
+    def flaky_open(path, *args, **kwargs):
+        calls.append(path)
+        if len(calls) < 3:
+            raise PermissionError('gesperrt')
+        return real_open(path, *args, **kwargs)
+
+    monkeypatch.setattr('builtins.open', flaky_open)
+    assert utils.write_text_with_retry(target, 'x', attempts=5, delay=0)
+    assert len(calls) == 3
+
+
+def test_write_with_retry_gives_up_without_raising(utils, tmp_path):
+    # Ein Verzeichnis lässt sich nicht als Datei öffnen.
+    assert utils.write_text_with_retry(tmp_path, 'x', attempts=2, delay=0) is False
+
+
+def test_autosave_does_not_switch_to_a_new_file(root):
+    source = (root / 'noScribe' / 'main.py').read_text(encoding='utf-8')
+    assert 'save_doc(final=False)' in source
+    assert 'attempts=10 if final else 1' in source
