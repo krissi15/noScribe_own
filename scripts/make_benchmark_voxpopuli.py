@@ -112,6 +112,67 @@ def read_tsv(text: str) -> list:
     return rows
 
 
+def is_german(path: str) -> bool:
+    parts = re.split(r'[/_.\-]', path.lower())
+    return 'de' in parts
+
+
+def load_from_files(files, split, download, sf, np):
+    """Ursprüngliches Layout: TSV mit Wortlaut + tar-Archive mit WAVs."""
+    tsvs = [f for f in files if f.endswith('.tsv') and is_german(f) and split in f]
+    tars = sorted(f for f in files if is_german(f) and split in f
+                  and f.endswith(('.tar.gz', '.tar')))
+    log('TSV:', tsvs[:5], 'Archive:', tars[:5])
+    if not tsvs or not tars:
+        return [], {}, {}
+    rows = read_tsv(Path(download(REPO, tsvs[0], repo_type='dataset')).read_text(encoding='utf-8'))
+    audio, durations = {}, {}
+    for name in tars:
+        path = download(REPO, name, repo_type='dataset')
+        with tarfile.open(path) as tar:
+            for member in tar:
+                if not member.isfile():
+                    continue
+                key = Path(member.name).name.rsplit('.', 1)[0]
+                add_audio(audio, durations, key, tar.extractfile(member).read(), sf, np)
+        log(f'{name}: {len(audio)} Abschnitte geladen')
+    return rows, audio, durations
+
+
+def load_from_parquet(files, split, download, sf, np):
+    """Parquet-Layout: je Zeile Ton (bytes) und Wortlaut."""
+    import pyarrow.parquet as pq
+    names = sorted(f for f in files if f.endswith('.parquet') and is_german(f) and split in f)
+    log('Parquet:', names[:5])
+    rows, audio, durations = [], {}, {}
+    for name in names:
+        path = download(REPO, name, repo_type='dataset', revision='refs/convert/parquet')
+        table = pq.read_table(path)
+        log(f'{name}: Spalten {table.column_names}')
+        for rec in table.to_pylist():
+            key = rec.get('audio_id') or rec.get('id')
+            text = rec.get('raw_text') or rec.get('normalized_text') or ''
+            rows.append({'id': key, 'text': text, 'speaker': str(rec.get('speaker_id') or '')})
+            snd = rec.get('audio') or {}
+            if isinstance(snd, dict) and snd.get('bytes'):
+                add_audio(audio, durations, key, snd['bytes'], sf, np)
+        if sum(durations.values()) > 3 * 3600:
+            break   # genug Auswahl
+    return rows, audio, durations
+
+
+def add_audio(audio, durations, key, raw: bytes, sf, np):
+    data, rate = sf.read(io.BytesIO(raw), dtype='float32')
+    if data.ndim > 1:
+        data = data.mean(axis=1)
+    if rate != RATE:
+        # Einfache lineare Umrechnung genügt für eine Prüfaufnahme.
+        n = int(len(data) * RATE / rate)
+        data = np.interp(np.linspace(0, len(data) - 1, n), np.arange(len(data)), data).astype('float32')
+    audio[key] = data
+    durations[key] = len(data) / RATE
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--out', type=Path, default=Path('benchmark_data'))
@@ -125,35 +186,19 @@ def main(argv=None) -> int:
     import soundfile as sf
     from huggingface_hub import HfApi, hf_hub_download
 
-    files = HfApi().list_repo_files(REPO, repo_type='dataset')
-    de = [f for f in files if f.startswith('data/de/')]
-    log('Dateien unter data/de:', *de[:40], sep='\n  ')
-    tsv_name = next(f for f in de if f.endswith(f'asr_{args.split}.tsv'))
-    tars = sorted(f for f in de if f'/{args.split}/' in f and f.endswith(('.tar.gz', '.tar')))
-    if not tars:
-        log('Kein Audio-Archiv gefunden.')
+    api = HfApi()
+    files = api.list_repo_files(REPO, repo_type='dataset')
+    log(f'{len(files)} Dateien im Repository, z. B.:', *files[:15], sep='\n  ')
+    rows, audio, durations = load_from_files(files, args.split, hf_hub_download, sf, np)
+    if not rows:
+        # Viele Datensätze liegen zusätzlich als Parquet im Zweig refs/convert/parquet.
+        files = api.list_repo_files(REPO, repo_type='dataset', revision='refs/convert/parquet')
+        log(f'Parquet-Zweig: {len(files)} Dateien, z. B.:', *files[:15], sep='\n  ')
+        rows, audio, durations = load_from_parquet(files, args.split, hf_hub_download, sf, np)
+    if not rows:
+        log('Deutscher Teil nicht gefunden.')
         return 1
-
-    rows = read_tsv(Path(hf_hub_download(REPO, tsv_name, repo_type='dataset')).read_text(encoding='utf-8'))
-    log(f'{len(rows)} Abschnitte im TSV, z. B. {rows[0]}')
-
-    audio, durations = {}, {}
-    for name in tars:
-        path = hf_hub_download(REPO, name, repo_type='dataset')
-        with tarfile.open(path) as tar:
-            for member in tar:
-                if not member.isfile():
-                    continue
-                key = Path(member.name).name.rsplit('.', 1)[0]
-                data, rate = sf.read(io.BytesIO(tar.extractfile(member).read()), dtype='float32')
-                if data.ndim > 1:
-                    data = data.mean(axis=1)
-                if rate != RATE:
-                    log(f'Abtastrate {rate} bei {key} -- übersprungen')
-                    continue
-                audio[key] = data
-                durations[key] = len(data) / RATE
-        log(f'{name}: {len(audio)} Abschnitte geladen')
+    log(f'{len(rows)} Abschnitte, {len(audio)} mit Ton, z. B. {rows[0]}')
 
     chosen = pick_session(rows, args.min_minutes * 60, args.max_minutes * 60, durations)
     if not chosen:
