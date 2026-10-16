@@ -52,6 +52,9 @@ Schnellere Sprechererkennung auf dem Prozessor:
   einen langsamen Rechner einzuordnen.
 - Jeder Bau liefert neben dem Installer ein ZIP zum Ausprobieren ohne
   Administratorrechte.
+- Messmodus `--benchmark` (Kommandozeile): Rechner, Einstellungen und Dauer
+  jedes Arbeitsschritts als JSON. `scripts/benchmark_report.py` vergleicht
+  Läufe und berechnet die Wortfehlerrate gegenüber einem geprüften Text.
 
 Nachprüfbarkeit des Transkripts:
 

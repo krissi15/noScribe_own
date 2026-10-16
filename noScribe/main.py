@@ -28,6 +28,7 @@ import platform
 import queue as pyqueue
 import re
 import sys
+import time
 import tkinter as tk
 import traceback
 import urllib
@@ -411,6 +412,9 @@ class TranscriptionJob:
     
     def __init__(self):
         # Status tracking
+        # Jeder Wechsel mit Zeitpunkt -- daraus misst --benchmark die Dauer
+        # der einzelnen Arbeitsschritte (siehe benchmark.py).
+        self.status_log: list = []
         self.status: JobStatus = JobStatus.WAITING
         self.error_message: Optional[str] = None
         self.error_tb: Optional[str] = None
@@ -456,6 +460,15 @@ class TranscriptionJob:
         # Derived properties
         self.file_ext: str = ''
     
+    @property
+    def status(self) -> JobStatus:
+        return self._status
+
+    @status.setter
+    def status(self, value: JobStatus):
+        self._status = value
+        self.status_log.append((getattr(value, 'value', str(value)), time.monotonic()))
+
     def set_running(self):
         """Mark job as running and record start time"""
         self.status = JobStatus.AUDIO_CONVERSION
@@ -829,6 +842,9 @@ Examples:
                        help='Exclude disfluencies from transcript')
     parser.add_argument('--pause', choices=['none', '1sec+', '2sec+', '3sec+'], default=None,
                        help='Mark pauses in transcript')
+    parser.add_argument('--benchmark', action='store_true', default=False,
+                       help='With --no-gui: write <output>.benchmark.json with machine, '
+                            'settings and the duration of each step')
     parser.add_argument('--selftest', action='store_true', default=False,
                        help='Check that speaker detection loads and runs, then exit '
                             '(0 = ok, 1 = error, 3 = weights missing)')
@@ -4099,6 +4115,39 @@ def _cleanup_app(app):
         except Exception:
             pass
 
+def _write_benchmark(job, args):
+    """Siehe benchmark.py. Ein Fehler hier darf das Ergebnis nicht verderben."""
+    from . import benchmark
+    try:
+        try:
+            sha = provenance.sha256_file(job.audio_file)
+        except OSError:
+            sha = ''
+        settings = {
+            'model': provenance.model_name_of(job.whisper_model),
+            'language': job.language_name,
+            'speaker_detection': job.speaker_detection,
+            'overlapping': job.overlapping,
+            'disfluencies': job.disfluencies,
+            'compute_type': job.whisper_compute_type,
+            'threads': number_threads,
+            'force_whisper_cpu': force_whisper_cpu,
+            'force_pyannote_cpu': force_pyannote_cpu,
+        }
+        data = benchmark.report(job, app_version, settings, sha)
+        path = benchmark.write(benchmark.sidecar_path(job.transcript_file), data)
+        sec = data['seconds']
+        print()
+        print(f"Benchmark: {path}")
+        print(f"  Rechner: {data['machine']['cpu']}, {data['machine']['ram_gb']} GB, "
+              f"{', '.join(data['machine']['gpus']) or 'keine Grafik erkannt'}")
+        print(f"  Aufnahme: {data['audio']['seconds']} s | gesamt {sec['total']} s | "
+              f"Sprechererkennung {sec['speaker_identification']} s | "
+              f"Spracherkennung {sec['transcription']} s | Faktor {data['realtime_factor']}")
+    except Exception as e:
+        print(f"Benchmark konnte nicht geschrieben werden: {e}")
+
+
 def run_cli_mode(args):
     """Run noScribe in CLI mode"""
     app = None
@@ -4155,6 +4204,9 @@ def run_cli_mode(args):
         # Start transcription worker with the queue
         app.transcription_worker()
         
+        if getattr(args, 'benchmark', False):
+            _write_benchmark(job, args)
+
         # Check results
         final_summary = app.queue.get_queue_summary()
         if final_summary['finished'] > 0:
