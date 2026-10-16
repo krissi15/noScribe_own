@@ -91,3 +91,8 @@ def test_evaluate_end_to_end(tmp_path):
     assert run['realtime_factor'] == 0.5
     assert run['speakers'] == 2
     assert '<table>' in report.render_html(result)
+
+
+def test_cuda_info_never_fails():
+    info = bench.cuda_info()
+    assert set(info) == {'available', 'device'}

@@ -4134,6 +4134,11 @@ def _write_benchmark(job, args):
             'force_whisper_cpu': force_whisper_cpu,
             'force_pyannote_cpu': force_pyannote_cpu,
         }
+        cuda = benchmark.cuda_info()
+        settings['cuda_available'] = cuda['available']
+        settings['cuda_device'] = cuda['device']
+        settings['whisper_on_gpu'] = cuda['available'] and not force_whisper_cpu
+        settings['pyannote_on_gpu'] = cuda['available'] and not force_pyannote_cpu
         data = benchmark.report(job, app_version, settings, sha)
         path = benchmark.write(benchmark.sidecar_path(job.transcript_file), data)
         sec = data['seconds']
