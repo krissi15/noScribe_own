@@ -1,0 +1,45 @@
+name: Build benchmark recording
+
+# Stellt aus VoxPopuli (Europaparlament, CC0) eine deutsche Prüfaufnahme mit
+# mehreren Rednern und bekanntem Wortlaut zusammen -- siehe
+# scripts/make_benchmark_voxpopuli.py. Ergebnis als Artefakt
+# "traudi-benchmark-voxpopuli-de": benchmark.wav, reference.html/.txt, Meta.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: 'Länge der Prüfaufnahme in Minuten (höchstens)'
+        default: '20'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install huggingface_hub soundfile numpy
+
+      - name: Build recording
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python scripts/make_benchmark_voxpopuli.py --out benchmark_data \
+            --max-minutes "${{ github.event.inputs.minutes || '20' }}" \
+            --min-minutes 10
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: traudi-benchmark-voxpopuli-de
+          path: benchmark_data/
+          if-no-files-found: error
+          retention-days: 90
