@@ -5,6 +5,7 @@ Different small and distinct helper functions
 import html
 import html.parser
 import re
+import time
 from pathlib import Path
 
 import i18n
@@ -57,6 +58,26 @@ def str_to_ms(time_str: str) -> int:
         ) from e
 
     return ret
+
+
+def write_text_with_retry(path, text: str, attempts: int = 1, delay: float = 0.5) -> bool:
+    """Schreibt `text` nach `path`; scheitert es, bis zu `attempts`-mal.
+
+    Unter Windows hält oft ein anderes Programm eine frisch geschriebene Datei
+    für einen Moment fest -- der Virenscanner, die OneDrive-Synchronisation
+    des Desktops, die Vorschau im Explorer. Ein einzelner Fehlschlag sagt
+    deshalb wenig. Gibt zurück, ob das Schreiben gelungen ist; wirft nie.
+    """
+    for attempt in range(max(1, attempts)):
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(text)
+                f.flush()
+            return True
+        except OSError:
+            if attempt < attempts - 1:
+                time.sleep(delay)
+    return False
 
 
 def create_unique_filenames(path_inputs: [Path]) -> Path:

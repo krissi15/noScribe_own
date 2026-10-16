@@ -19,6 +19,12 @@ sieben Fachperspektiven.
   Schließen alle Korrekturen verloren gehen.
 - Ohne erkannte Sprache entsteht trotzdem eine Datei mit Hinweis, statt einer
   falschen Erfolgsmeldung.
+- Während der Transkription entsteht nur noch eine Datei. Scheiterte das
+  Zwischenspeichern kurz (Virenscanner, OneDrive), wechselte Traudi bisher
+  dauerhaft auf einen neuen Namen; bei einer 74-Minuten-Aufnahme lagen am Ende
+  sieben Dateien da, sechs davon unvollständig. Jetzt folgt einfach der nächste
+  Versuch; nur der Endstand weicht nach mehreren Versuchen auf einen anderen
+  Namen aus.
 - Nachgelegte Diarisierungs-Gewichte im Benutzerordner funktionieren jetzt.
 - Schalter in der config.yml dürfen auch `true`/`false` lauten, ohne dass
   Traudi wortlos nicht startet.
