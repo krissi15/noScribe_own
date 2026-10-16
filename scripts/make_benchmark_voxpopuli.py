@@ -32,8 +32,8 @@ REPO = 'facebook/voxpopuli'
 RATE = 16000
 
 
-def log(*args):
-    print(*args, flush=True)
+def log(*args, **kwargs):
+    print(*args, flush=True, **kwargs)
 
 
 # --- Auswahl (ohne Netz testbar) --------------------------------------------

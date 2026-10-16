@@ -44,3 +44,8 @@ def test_reference_html_is_readable_by_the_report():
     segs = report.segments(page)
     assert [s[2] for s in segs] == ['S01', 'S02', 'S01']
     assert report.normalize(segs[0][3]) == ['guten', 'tag']
+
+
+def test_log_accepts_print_keywords(capsys):
+    vp.log('a', 'b', sep='|')
+    assert capsys.readouterr().out == 'a|b\n'
