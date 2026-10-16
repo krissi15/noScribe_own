@@ -267,6 +267,23 @@ python -m noScribe aufnahme.mp3 protokoll.html --no-gui \
 `python -m noScribe --help` zeigt alle Schalter, `--help-models` die
 installierten Modelle.
 
+### Messen und vergleichen
+
+Mit `--benchmark` schreibt Traudi neben das Transkript eine Datei
+`<name>.benchmark.json`: Rechner (Prozessor, Kerne, Arbeitsspeicher, Grafik),
+Version, Einstellungen, Prüfsumme und Länge der Aufnahme und die Dauer jedes
+Arbeitsschritts.
+
+```bat
+Traudi.exe "C:\Test\Verhandlung.mp3" "C:\Test\dienstlaptop.html" --no-gui --benchmark ^
+    --language German --model precise --speaker-detection auto
+```
+
+`scripts/benchmark_report.py` vergleicht mehrere Läufe -- auch von Versionen
+ohne Messmodus (dann zählt die „Gesamte Verarbeitungszeit" aus dem
+Protokoll) -- und berechnet die Wortfehlerrate gegenüber einem geprüften
+Vergleichstext. Aufbau der Eingabedatei: siehe Kopf des Skripts.
+
 ---
 
 ## Was die Qualität beeinflusst
