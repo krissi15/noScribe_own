@@ -27,7 +27,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install huggingface_hub soundfile numpy
+        run: pip install huggingface_hub soundfile numpy pyarrow
 
       - name: Build recording
         env:
