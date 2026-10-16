@@ -108,6 +108,17 @@ def physical_cores():
         return None
 
 
+def cuda_info() -> dict:
+    """Ob torch eine Nvidia-Grafikkarte nutzen kann -- in der CPU-Fassung nie."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return {'available': True, 'device': torch.cuda.get_device_name(0)}
+    except Exception:
+        pass
+    return {'available': False, 'device': None}
+
+
 def machine() -> dict:
     return {
         'cpu': cpu_name(),

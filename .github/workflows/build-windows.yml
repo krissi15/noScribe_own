@@ -137,10 +137,14 @@ jobs:
       - name: Report free disk space
         run: Get-PSDrive C | Select-Object Used, Free
 
+      # Die CUDA-Variante bekommt keinen Installer: Allein die Nvidia-
+      # Bibliotheken (cuDNN, cuBLAS) sind groesser als die 2 GB, die NSIS
+      # verarbeiten kann ("Internal compiler error #12345: error mmapping
+      # file ... is out of range"). Sie gibt es als ZIP zum Entpacken.
       - name: Build installer
         run: |
           if ($env:VARIANT -eq 'cuda') {
-            python pyinstaller/win_build.py --cuda
+            python pyinstaller/win_build.py --cuda --skip-nsis
           } else {
             python pyinstaller/win_build.py
           }
@@ -197,6 +201,7 @@ jobs:
       # Selbsttest aus dem installierten Ordner, stille Deinstallation --,
       # prueft dieser Schritt so, wie eine Softwareverteilung es taete.
       - name: Installer test - upgrade from 0.7.6, install, selftest, uninstall
+        if: env.VARIANT == 'cpu'
         timeout-minutes: 25
         env:
           GH_TOKEN: ${{ github.token }}
@@ -252,6 +257,7 @@ jobs:
           $global:LASTEXITCODE = 0
 
       - uses: actions/upload-artifact@v4
+        if: env.VARIANT == 'cpu'
         with:
           name: traudi-windows-installer-${{ github.event.inputs.variant || 'cpu' }}
           path: pyinstaller/win_installer/*.exe

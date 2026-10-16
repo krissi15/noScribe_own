@@ -55,6 +55,10 @@ Schnellere Sprechererkennung auf dem Prozessor:
 - Messmodus `--benchmark` (Kommandozeile): Rechner, Einstellungen und Dauer
   jedes Arbeitsschritts als JSON. `scripts/benchmark_report.py` vergleicht
   Läufe und berechnet die Wortfehlerrate gegenüber einem geprüften Text.
+- Grafikkarten-Variante (Nvidia, CUDA) wird als ZIP gebaut. Einen Installer
+  gibt es dafür nicht: Die Nvidia-Bibliotheken allein sprengen die
+  2-GB-Grenze von NSIS. Der Messmodus hält fest, ob die Grafikkarte genutzt
+  wurde.
 
 Nachprüfbarkeit des Transkripts:
 
